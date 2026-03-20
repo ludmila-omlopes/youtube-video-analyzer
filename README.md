@@ -1,4 +1,4 @@
-# YouTube Analyzer MCP
+# YouTube Video Analyzer MCP
 
 An MCP `stdio` server that uses Google Gemini to analyze public YouTube videos by attaching the YouTube URL as video input instead of only mentioning it in prompt text.
 
@@ -75,7 +75,7 @@ Replace the example path below with the absolute path to your own built `dist/in
   "mcpServers": {
     "youtube-analyzer": {
       "command": "node",
-      "args": ["/absolute/path/to/youtube-analyzer-mcp/dist/index.js"],
+      "args": ["/absolute/path/to/youtube-video-analyzer-mcp/dist/index.js"],
       "env": {
         "GEMINI_API_KEY": "your_gemini_api_key_here",
         "GEMINI_MODEL": "gemini-2.5-pro",

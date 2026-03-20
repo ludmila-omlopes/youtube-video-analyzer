@@ -1,5 +1,5 @@
 {
-  "name": "youtube-analyzer-mcp",
+  "name": "youtube-video-analyzer-mcp",
   "version": "0.2.0",
   "description": "MCP stdio server for analyzing YouTube videos with Google Gemini",
   "type": "module",
