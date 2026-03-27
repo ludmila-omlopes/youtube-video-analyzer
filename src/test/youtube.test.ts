@@ -10,7 +10,7 @@ import {
   readUserConfigFile,
   writeUserConfigFile,
 } from "../lib/constants.js";
-import { selectDownloadedVideoFile } from "../lib/youtube.js";
+import { getYouTubeMetadata, selectDownloadedVideoFile } from "../lib/youtube.js";
 
 export async function run(): Promise<void> {
   assert.equal(
@@ -47,12 +47,14 @@ export async function run(): Promise<void> {
   applyUserConfigToEnv(
     {
       GEMINI_API_KEY: "from-config",
+      YOUTUBE_API_KEY: "youtube-from-config",
       GEMINI_MODEL: "gemini-2.5-pro",
       YT_DLP_PATH: "yt-dlp",
     },
     env
   );
   assert.equal(env.GEMINI_API_KEY, "already-set");
+  assert.equal(env.YOUTUBE_API_KEY, "youtube-from-config");
   assert.equal(env.GEMINI_MODEL, "gemini-2.5-pro");
   assert.equal(env.YT_DLP_PATH, "yt-dlp");
 
@@ -62,6 +64,7 @@ export async function run(): Promise<void> {
   try {
     await writeUserConfigFile(configPath, {
       GEMINI_API_KEY: "key-123",
+      YOUTUBE_API_KEY: "youtube-key-456",
       GEMINI_MODEL: "gemini-2.5-pro",
       YT_DLP_PATH: "  ",
     });
@@ -69,6 +72,7 @@ export async function run(): Promise<void> {
     const config = await readUserConfigFile(configPath);
     assert.deepEqual(config, {
       GEMINI_API_KEY: "key-123",
+      YOUTUBE_API_KEY: "youtube-key-456",
       GEMINI_MODEL: "gemini-2.5-pro",
     });
   } finally {
@@ -79,4 +83,37 @@ export async function run(): Promise<void> {
   assert.match(guidance, /youtube-video-analyzer-mcp setup/);
   assert.match(guidance, /GEMINI_API_KEY/);
   assert.match(guidance, /\/tmp\/youtube-video-analyzer-mcp\/config\.json/);
+
+  const previousYtDlpPath = process.env.YT_DLP_PATH;
+  const previousFetch = globalThis.fetch;
+  process.env.YT_DLP_PATH = "definitely-missing-yt-dlp-command";
+  globalThis.fetch = async () =>
+    new Response(
+      [
+        '<meta property="og:title" content="Test Video">',
+        '<link itemprop="name" content="Test Channel">',
+        '<meta itemprop="datePublished" content="2026-03-24">',
+        '"lengthSeconds":"901"',
+      ].join(""),
+      { status: 200, headers: { "content-type": "text/html" } }
+    );
+
+  try {
+    const metadata = await getYouTubeMetadata("https://www.youtube.com/watch?v=test");
+    assert.deepEqual(metadata, {
+      durationSeconds: 901,
+      title: "Test Video",
+      uploader: "Test Channel",
+      uploadDate: "2026-03-24",
+      liveStatus: null,
+    });
+  } finally {
+    if (previousYtDlpPath === undefined) {
+      delete process.env.YT_DLP_PATH;
+    } else {
+      process.env.YT_DLP_PATH = previousYtDlpPath;
+    }
+
+    globalThis.fetch = previousFetch;
+  }
 }

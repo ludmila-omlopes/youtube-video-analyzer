@@ -1,4 +1,5 @@
-﻿export type ErrorStage =
+export type ErrorStage =
+  | "config"
   | "metadata"
   | "download"
   | "upload"

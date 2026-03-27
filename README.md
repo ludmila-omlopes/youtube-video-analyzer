@@ -1,28 +1,37 @@
 # YouTube Video Analyzer MCP
 
-An MCP `stdio` server that uses Google Gemini to analyze public YouTube videos by attaching the YouTube URL as video input instead of only mentioning it in prompt text.
+An MCP server for analyzing public YouTube videos with Google Gemini. The package keeps its local `stdio` npm entrypoint for registry and desktop-client usage, and also includes a public Streamable HTTP adapter for Vercel-style deployment.
 
 ## Features
 
 - `analyze_youtube_video` for direct short-video or manual-clip analysis
-- `analyze_long_youtube_video` for long videos with Files API-first long-video handling and URL-chunk fallback
-- `continue_long_video_analysis` for follow-up questions on an uploaded long-video session
+- `analyze_long_youtube_video` for long videos with Files API-first handling and URL-chunk fallback
+- `continue_long_video_analysis` for follow-up questions on a long-video `sessionId`
+- `get_youtube_video_metadata` for normalized public YouTube video metadata via the YouTube Data API
 - Automatic YouTube URL normalization for `watch`, `live`, `shorts`, `embed`, and `youtu.be` links
 - Structured JSON output in the video's detected dominant language by default
 - MCP-native `structuredContent` responses with JSON text preserved in `content` for compatibility
 - Structured stderr logging with request correlation IDs for long-running tool diagnostics
 - Safe MCP error payloads with machine-readable `code`, `stage`, and strategy metadata
 - Optional custom JSON schema support for final outputs
-- `youtube-video-analyzer-mcp setup` for saving user-level config when using the npm package directly
+- Shared transport-neutral analysis service used by both `stdio` and HTTP adapters
+- Public remote MCP route at `api/mcp.ts`
 
 ## Project layout
 
 - `src/index.ts`: `stdio` bootstrap only
-- `src/server.ts`: MCP server creation, request logging, and `registerTool(...)` wiring
+- `src/server.ts`: shared MCP tool registration, request logging, and task wiring
+- `src/app/video-analysis-service.ts`: transport-neutral application service
+- `src/app/session-store.ts`: session store contract plus in-memory implementation
+- `src/app/create-service.ts`: local and cloud service factories
+- `src/app/create-public-remote-service.ts`: public remote HTTP service factory
+- `src/http/mcp.ts`: web-standard Streamable HTTP adapter
+- `src/dev/hosted.ts`: local hosted-dev HTTP server for `/` and `/api/mcp`
+- `api/mcp.ts`: Vercel route wrapper
 - `src/lib/schemas.ts`: input and output schemas plus JSON helpers
 - `src/lib/youtube.ts`: YouTube URL normalization and `yt-dlp` helpers
 - `src/lib/gemini.ts`: Gemini request builders, uploads, token budgeting, caching, and retry handling
-- `src/lib/analysis.ts`: short-video, long-video, and follow-up orchestration with in-memory sessions
+- `src/lib/analysis.ts`: short-video, long-video, and follow-up orchestration
 - `src/lib/logger.ts`: structured stderr logging helpers
 - `src/lib/errors.ts`: safe diagnostic error types and retryability heuristics
 
@@ -30,6 +39,7 @@ An MCP `stdio` server that uses Google Gemini to analyze public YouTube videos b
 
 - Node.js 20+
 - A Gemini API key
+- A YouTube Data API key for the metadata tool
 - A public YouTube video URL
 - `yt-dlp` installed locally for the long-video tool, either as a binary or via `python -m yt_dlp`
 - `ffmpeg` if your `yt-dlp` setup needs it to merge adaptive video/audio downloads
@@ -71,6 +81,41 @@ npm run build
 npm start
 ```
 
+For the local hosted HTTP adapter:
+
+```bash
+npm run dev:hosted
+```
+
+## Remote MCP on Vercel
+
+The repository includes a public remote MCP entrypoint for web-standard Streamable HTTP:
+
+- `api/mcp.ts`: Vercel route
+- `src/http/mcp.ts`: shared HTTP handler
+
+The HTTP adapter is public and reuses the same MCP tool registration logic from `src/server.ts`.
+
+Remote deployment environment variables:
+
+- `GEMINI_API_KEY`
+- `YOUTUBE_API_KEY`
+
+Remote runtime behavior:
+
+- remote Gemini calls use the server-owned `GEMINI_API_KEY`
+- remote metadata calls use the server-owned `YOUTUBE_API_KEY`
+- remote MCP access is plug and play at `/api/mcp`
+- long-video remote sessions use the shared in-memory cloud session store from this process
+- long-video cloud execution still depends on `yt-dlp`, `ffmpeg`, temp storage, and function limits
+- local `stdio` usage still uses environment variables and local config only
+
+Important limitation for public HTTP deployments:
+
+- `sessionId` is an opaque identifier sufficient for `continue_long_video_analysis`
+- long-video sessions are volatile in the public HTTP mode
+- restart, redeploy, expiration, or multi-instance routing can invalidate a previous `sessionId`
+
 ## Using the npm package
 
 Run it without installing globally:
@@ -106,6 +151,8 @@ Config precedence is:
 
 ## MCP configuration example
 
+### Local `stdio`
+
 Replace the example path below with the absolute path to your own built `dist/index.js` file.
 
 ```json
@@ -116,9 +163,22 @@ Replace the example path below with the absolute path to your own built `dist/in
       "args": ["-y", "@ludylops/youtube-video-analyzer-mcp"],
       "env": {
         "GEMINI_API_KEY": "your_gemini_api_key_here",
+        "YOUTUBE_API_KEY": "your_youtube_api_key_here",
         "GEMINI_MODEL": "gemini-2.5-pro",
         "YT_DLP_PATH": "yt-dlp"
       }
+    }
+  }
+}
+```
+
+### Public remote HTTP
+
+```json
+{
+  "mcpServers": {
+    "youtube-analyzer-remote": {
+      "url": "https://your-deployment.example.com/api/mcp"
     }
   }
 }
@@ -144,6 +204,24 @@ Success output:
 - `content[0].text`: pretty-printed JSON for compatibility with text-only clients
 - `structuredContent`: the same parsed object validated against the tool output schema
 
+### `get_youtube_video_metadata`
+
+Inputs:
+
+- `youtubeUrl`: public YouTube URL in `watch`, `live`, `shorts`, `embed`, or `youtu.be` form
+
+Behavior:
+
+- Uses the YouTube Data API `videos.list` endpoint, not Gemini
+- Normalizes supported URLs to a canonical `https://www.youtube.com/watch?v=...` URL
+- Requires `YOUTUBE_API_KEY` in the runtime environment or local user config
+- Returns normalized metadata fields with `null` or empty arrays for missing public fields
+
+Success output:
+
+- `content[0].text`: pretty-printed JSON for compatibility with text-only clients
+- `structuredContent`: normalized public video metadata validated against the tool output schema
+
 ### `analyze_long_youtube_video`
 
 Inputs:
@@ -162,31 +240,13 @@ Strategy policy:
 - `uploaded_file`: deterministic Files API path for long videos
 - `url_chunks`: explicit preview-oriented path for public YouTube videos that avoids local download/upload work
 
-Production guidance:
-
-- Uploaded-file analysis is the recommended default for long videos because Gemini Files API is the documented path for larger and reusable media.
-- URL chunking can still be useful when you want to avoid local download/upload work and the source video is public, but it depends on preview YouTube URL support and is not the primary production path.
-
 Behavior:
 
-- Uses `yt-dlp` to resolve duration metadata for long videos
+- Uses `yt-dlp` to resolve duration metadata for long videos when available, with a watch-page fallback for public videos in cloud-style runtimes
 - In `auto`, prefers uploaded-file analysis before trying direct URL chunks
 - Returns a `sessionId` when an uploaded-file session is created successfully
 - Emits structured stderr logs for strategy choice, chunk progress, retries, fallbacks, and failures
 - Returns `structuredContent` on success and `isError: true` on handled runtime failures
-
-Handled failure output:
-
-- `error.tool`
-- `error.requestId`
-- `error.code`
-- `error.stage`
-- `error.message`
-- `error.retryable`
-- `error.strategyRequested`
-- `error.strategyAttempted`
-- `error.causeMessage`
-- `error.details`
 
 ### `continue_long_video_analysis`
 
@@ -199,9 +259,10 @@ Inputs:
 
 ## Notes
 
-- The server uses the current MCP `registerTool(...)` API and remains intentionally `stdio`-only in this project.
-- Streamable HTTP is the modern remote transport, but adding it is out of scope for this server.
+- The server uses the current MCP `registerTool(...)` API and supports both local `stdio` and remote Streamable HTTP adapters.
 - The server normalizes supported YouTube URL formats into a canonical `https://www.youtube.com/watch?v=...` URL before sending the request to Gemini.
+- `get_youtube_video_metadata` uses the YouTube Data API and does not call Gemini.
 - If `YT_DLP_PATH` is not set, the server will try `python -m yt_dlp` automatically.
 - Cache reuse is an optimization for repeated analysis on the same uploaded asset; it does not increase the effective model context window.
-- Sessions are stored in memory only and disappear if the MCP server restarts.
+- Local `stdio` sessions use an in-memory store by default.
+- Public HTTP deployments use a shared in-memory cloud session store and expose `/api/mcp` without additional authentication.

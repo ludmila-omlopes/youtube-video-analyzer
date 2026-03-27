@@ -82,6 +82,12 @@ async function runSetup() {
       "Gemini API key",
       process.env.GEMINI_API_KEY || userConfig.GEMINI_API_KEY
     );
+    const youtubeApiKey = await promptOptionalValue(
+      rl,
+      "YouTube API key",
+      process.env.YOUTUBE_API_KEY || userConfig.YOUTUBE_API_KEY,
+      "optional, required only for get_youtube_video_metadata"
+    );
     const geminiModel = await promptOptionalValue(
       rl,
       "Gemini model",
@@ -97,6 +103,7 @@ async function runSetup() {
 
     await writeUserConfigFile(configPath, {
       GEMINI_API_KEY: geminiApiKey,
+      ...(youtubeApiKey ? { YOUTUBE_API_KEY: youtubeApiKey } : {}),
       ...(geminiModel && geminiModel !== defaultModel ? { GEMINI_MODEL: geminiModel } : {}),
       ...(ytDlpPath ? { YT_DLP_PATH: ytDlpPath } : {}),
     });

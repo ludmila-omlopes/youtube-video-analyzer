@@ -5,3 +5,5 @@ dist
 .npm-cache*
 .tools/
 .mcpregistry_*_token
+
+.vercel

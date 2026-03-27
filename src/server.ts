@@ -2,15 +2,11 @@ import { InMemoryTaskMessageQueue } from "@modelcontextprotocol/sdk/experimental
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, GetTaskResult, Task } from "@modelcontextprotocol/sdk/types.js";
 
-import {
-  analyzeLongVideo,
-  analyzeShortVideo,
-  continueLongVideoAnalysis,
-  type AnalysisExecutionContext,
-} from "./lib/analysis.js";
+import { createVideoAnalysisService } from "./app/create-service.js";
+import type { VideoAnalysisServiceLike } from "./app/video-analysis-service.js";
+import type { AnalysisExecutionContext } from "./lib/analysis.js";
 import { DEFAULT_TASK_TTL_MS, SERVER_INFO } from "./lib/constants.js";
 import { asDiagnosticError } from "./lib/errors.js";
-import { createAiClient } from "./lib/gemini.js";
 import { createRequestLogger, type Logger } from "./lib/logger.js";
 import {
   followUpToolInputSchema,
@@ -18,6 +14,8 @@ import {
   formatJson,
   longToolInputSchema,
   longToolOutputSchema,
+  metadataToolInputSchema,
+  metadataToolOutputSchema,
   shortToolInputSchema,
   shortToolOutputSchema,
   type FollowUpToolInput,
@@ -49,6 +47,11 @@ type RequestExtra = {
 
 type TaskCreateExtra = RequestExtra & {
   taskStore: NonNullable<RequestExtra["taskStore"]>;
+};
+
+export type CreateServerOptions = {
+  service?: VideoAnalysisServiceLike;
+  taskStore?: ManagedTaskStore;
 };
 
 function createSuccessToolResult(structuredContent: StructuredSuccess) {
@@ -206,8 +209,9 @@ async function runLongTask<Args, Result extends StructuredSuccess>(params: {
   return { task };
 }
 
-export function createServer(): McpServer {
-  const taskStore = new ManagedTaskStore();
+export function createServer(options: CreateServerOptions = {}): McpServer {
+  const taskStore = options.taskStore ?? new ManagedTaskStore();
+  const service = options.service ?? createVideoAnalysisService();
   const server = new McpServer(SERVER_INFO, {
     capabilities: {
       logging: {},
@@ -216,6 +220,54 @@ export function createServer(): McpServer {
     taskStore,
     taskMessageQueue: new InMemoryTaskMessageQueue(),
   });
+
+  server.registerTool(
+    "get_youtube_video_metadata",
+    {
+      title: "Get YouTube Video Metadata",
+      description: [
+        "Fetch normalized public YouTube video metadata with the YouTube Data API.",
+        "Accepts supported YouTube URL formats, normalizes them to a canonical watch URL, and does not use Gemini or download the video.",
+      ].join(" "),
+      inputSchema: metadataToolInputSchema,
+      outputSchema: metadataToolOutputSchema,
+    },
+    async ({ youtubeUrl }, extra) => {
+      const logger = createRequestLogger("get_youtube_video_metadata");
+      const startedAt = Date.now();
+      logger.info("tool.start", { youtubeUrl });
+
+      try {
+        const result = await service.getYouTubeMetadata(
+          { youtubeUrl },
+          createExecutionContext("get_youtube_video_metadata", logger, extra.signal)
+        );
+
+        logger.info("tool.success", {
+          durationMs: Date.now() - startedAt,
+          videoId: result.videoId,
+        });
+        return createSuccessToolResult(result);
+      } catch (error) {
+        const diagnostic = asDiagnosticError(error, {
+          tool: "get_youtube_video_metadata",
+          code: "YOUTUBE_METADATA_FETCH_FAILED",
+          stage: "metadata",
+          message: "YouTube metadata fetch failed.",
+        });
+        logger.error("tool.failure", {
+          durationMs: Date.now() - startedAt,
+          code: diagnostic.code,
+          stage: diagnostic.stage,
+          message: diagnostic.message,
+          retryable: diagnostic.retryable,
+          causeMessage: diagnostic.causeMessage,
+          details: diagnostic.details,
+        });
+        return createErrorToolResult("get_youtube_video_metadata", logger.requestId, diagnostic);
+      }
+    }
+  );
 
   server.registerTool(
     "analyze_youtube_video",
@@ -240,8 +292,7 @@ export function createServer(): McpServer {
       });
 
       try {
-        const result = await analyzeShortVideo(
-          createAiClient(),
+        const result = await service.analyzeShort(
           { youtubeUrl, analysisPrompt, startOffsetSeconds, endOffsetSeconds, model, responseSchemaJson },
           createExecutionContext("analyze_youtube_video", logger, extra.signal)
         );
@@ -297,7 +348,7 @@ export function createServer(): McpServer {
           args,
           logger,
           startedAt,
-          execute: (input, context) => analyzeLongVideo(createAiClient(), input, context),
+          execute: (input, context) => service.analyzeLong(input, context),
           onStartLog: {
             youtubeUrl: args.youtubeUrl,
             strategyRequested: args.strategy ?? "auto",
@@ -347,7 +398,7 @@ export function createServer(): McpServer {
           args,
           logger,
           startedAt,
-          execute: (input, context) => continueLongVideoAnalysis(createAiClient(), input, context),
+          execute: (input, context) => service.continueLong(input, context),
           onStartLog: {
             sessionId: args.sessionId,
             model: args.model ?? null,

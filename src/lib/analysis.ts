@@ -54,8 +54,8 @@ import type {
   YtDlpMetadata,
 } from "./types.js";
 import { downloadYouTubeVideo, downloadYouTubeVideoSegment, getYouTubeMetadata, normalizeYouTubeUrl } from "./youtube.js";
+import type { AnalysisSessionStore } from "../app/session-store.js";
 
-const analysisSessions = new Map<string, AnalysisSession>();
 const CONSERVATIVE_URL_CHUNK_DURATION_SECONDS = 600;
 
 type MediaOption = {
@@ -129,13 +129,16 @@ function createConservativeChunkPlan(durationSeconds: number): ChunkPlanItem[] {
   return chunks;
 }
 
-function createSession(session: Omit<AnalysisSession, "sessionId" | "createdAt">): AnalysisSession {
+async function createSession(
+  sessionStore: AnalysisSessionStore,
+  session: Omit<AnalysisSession, "sessionId" | "createdAt">
+): Promise<AnalysisSession> {
   const created: AnalysisSession = {
     ...session,
     sessionId: randomUUID(),
     createdAt: new Date().toISOString(),
   };
-  analysisSessions.set(created.sessionId, created);
+  await sessionStore.set(created);
   return created;
 }
 
@@ -916,6 +919,7 @@ async function runUploadedFileStrategy(
   ai: GoogleGenAI,
   params: LongToolInput,
   config: {
+    sessionStore: AnalysisSessionStore;
     normalizedYoutubeUrl: string;
     metadata: YtDlpMetadata;
     chunkModel: string;
@@ -1058,7 +1062,7 @@ async function runUploadedFileStrategy(
           }
         );
 
-        const session = createSession({
+        const session = await createSession(config.sessionStore, {
           normalizedYoutubeUrl: config.normalizedYoutubeUrl,
           uploadedFile,
           cacheName: cacheInfo?.name,
@@ -1170,6 +1174,7 @@ async function runUploadedFileStrategy(
 
 export async function analyzeLongVideo(
   ai: GoogleGenAI,
+  sessionStore: AnalysisSessionStore,
   params: LongToolInput,
   context: AnalysisExecutionContext
 ): Promise<LongToolOutput> {
@@ -1224,6 +1229,7 @@ export async function analyzeLongVideo(
       ai,
       params,
       {
+        sessionStore,
         normalizedYoutubeUrl,
         metadata,
         chunkModel,
@@ -1277,12 +1283,13 @@ export async function analyzeLongVideo(
 
 export async function continueLongVideoAnalysis(
   ai: GoogleGenAI,
+  sessionStore: AnalysisSessionStore,
   params: FollowUpToolInput,
   context: AnalysisExecutionContext
 ): Promise<FollowUpToolOutput> {
-  const session = analysisSessions.get(params.sessionId);
+  const session = await sessionStore.get(params.sessionId);
   if (!session) {
-    throw new Error("Unknown analysis session. Sessions are in-memory only and disappear when the server restarts.");
+    throw new Error("Unknown analysis session. The session may have expired or the backing store may not contain it.");
   }
 
   const targetModel = params.model || session.cacheModel || DEFAULT_LONG_VIDEO_FINAL_MODEL;

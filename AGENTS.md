@@ -49,6 +49,7 @@ These surfaces evolve faster than the rest of the repo. If a change depends on p
 - Prefer deterministic tests with fakes/stubs over real network calls.
 - Treat `scripts/*.mjs` as manual smoke helpers only, because they may require real credentials, real downloads, or paid API usage.
 - Run `npm run test` after meaningful changes. If a change affects build output or module boundaries, also ensure `npm run build` still passes.
+- Before handing off a releasable npm change, run `npm run release:check` so version state, tests, and `npm pack --dry-run` are verified together.
 
 ## Change Guidelines
 
@@ -56,6 +57,7 @@ These surfaces evolve faster than the rest of the repo. If a change depends on p
 - Keep cancellation and timeout handling intact for long-running tasks.
 - Validate model output against schema locally; do not trust provider output blindly.
 - When adding a new tool or strategy, define its schema, orchestration path, error shape, and tests together.
+- When preparing a releasable change, always bump the npm package version in `package.json` before handing off or publishing. If the MCP Registry metadata will also be republished, update the matching version in `server.json` in the same change.
 - Prefer explicit names and small functions over clever abstractions.
 - Avoid mixing unrelated concerns in one file just because they share the same tool flow.
 

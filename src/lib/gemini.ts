@@ -236,6 +236,14 @@ export function createAiClient(): GoogleGenAI {
     throw new Error("Missing GEMINI_API_KEY environment variable.");
   }
 
+  return createAiClientWithApiKey(apiKey);
+}
+
+export function createAiClientWithApiKey(apiKey: string): GoogleGenAI {
+  if (!apiKey.trim()) {
+    throw new Error("Gemini API key must not be empty.");
+  }
+
   return new GoogleGenAI({ apiKey });
 }
 

@@ -103,6 +103,14 @@ export const followUpToolInputSchema = {
   responseSchemaJson: z.string().trim().min(2).optional(),
 } satisfies z.ZodRawShape;
 
+export const metadataToolInputSchema = {
+  youtubeUrl: z
+    .string()
+    .trim()
+    .min(1)
+    .refine((value) => normalizeYouTubeUrl(value) !== null, "youtubeUrl must be a valid YouTube URL"),
+} satisfies z.ZodRawShape;
+
 const jsonObjectSchema = z.record(z.unknown());
 const nullableStringSchema = z.string().nullable();
 
@@ -135,6 +143,35 @@ const tokenBudgetSchema = z.object({
 const modelsUsedSchema = z.object({
   chunkModel: z.string(),
   finalModel: z.string(),
+});
+
+const thumbnailSchema = z.object({
+  url: z.string(),
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+});
+
+const metadataLiveStreamingDetailsSchema = z.object({
+  actualStartTime: nullableStringSchema,
+  actualEndTime: nullableStringSchema,
+  scheduledStartTime: nullableStringSchema,
+  scheduledEndTime: nullableStringSchema,
+  concurrentViewers: z.number().nullable(),
+});
+
+const metadataStatisticsSchema = z.object({
+  viewCount: z.number().nullable(),
+  likeCount: z.number().nullable(),
+  favoriteCount: z.number().nullable(),
+  commentCount: z.number().nullable(),
+});
+
+const metadataThumbnailsSchema = z.object({
+  default: thumbnailSchema.optional(),
+  medium: thumbnailSchema.optional(),
+  high: thumbnailSchema.optional(),
+  standard: thumbnailSchema.optional(),
+  maxres: thumbnailSchema.optional(),
 });
 
 export const shortToolOutputSchema = {
@@ -174,13 +211,43 @@ export const followUpToolOutputSchema = {
   analysis: jsonObjectSchema,
 } satisfies z.ZodRawShape;
 
+export const metadataToolOutputSchema = {
+  youtubeUrl: z.string(),
+  normalizedYoutubeUrl: z.string(),
+  videoId: z.string(),
+  title: nullableStringSchema,
+  description: nullableStringSchema,
+  channelId: nullableStringSchema,
+  channelTitle: nullableStringSchema,
+  publishedAt: nullableStringSchema,
+  durationIso8601: nullableStringSchema,
+  durationSeconds: z.number().nullable(),
+  definition: nullableStringSchema,
+  caption: z.boolean().nullable(),
+  licensedContent: z.boolean().nullable(),
+  projection: nullableStringSchema,
+  dimension: nullableStringSchema,
+  privacyStatus: nullableStringSchema,
+  embeddable: z.boolean().nullable(),
+  liveBroadcastContent: nullableStringSchema,
+  liveStreamingDetails: metadataLiveStreamingDetailsSchema.nullable(),
+  thumbnails: metadataThumbnailsSchema,
+  tags: z.array(z.string()),
+  categoryId: nullableStringSchema,
+  defaultLanguage: nullableStringSchema,
+  defaultAudioLanguage: nullableStringSchema,
+  statistics: metadataStatisticsSchema,
+} satisfies z.ZodRawShape;
+
 export type ShortToolInput = z.infer<z.ZodObject<typeof shortToolInputSchema>>;
 export type LongToolInput = z.infer<z.ZodObject<typeof longToolInputSchema>>;
 export type FollowUpToolInput = z.infer<z.ZodObject<typeof followUpToolInputSchema>>;
+export type MetadataToolInput = z.infer<z.ZodObject<typeof metadataToolInputSchema>>;
 
 export type ShortToolOutput = z.infer<z.ZodObject<typeof shortToolOutputSchema>>;
 export type LongToolOutput = z.infer<z.ZodObject<typeof longToolOutputSchema>>;
 export type FollowUpToolOutput = z.infer<z.ZodObject<typeof followUpToolOutputSchema>>;
+export type MetadataToolOutput = z.infer<z.ZodObject<typeof metadataToolOutputSchema>>;
 
 export function parseSchema(responseSchemaJson?: string): Record<string, unknown> {
   if (!responseSchemaJson) {

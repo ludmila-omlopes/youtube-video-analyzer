@@ -6,7 +6,7 @@ import process from "node:process";
 import { promisify } from "node:util";
 
 import { YT_DLP_DEFAULT_FORMAT, YT_DLP_OUTPUT_TEMPLATE } from "./constants.js";
-import type { DownloadedVideo, YtDlpMetadata } from "./types.js";
+import type { DownloadedVideo, LongVideoStrategy, YtDlpMetadata } from "./types.js";
 
 const execFileAsync = promisify(execFile);
 const TRANSIENT_DOWNLOAD_EXTENSIONS = new Set([".part", ".temp", ".ytdl"]);
@@ -14,6 +14,15 @@ const TRANSIENT_DOWNLOAD_EXTENSIONS = new Set([".part", ".temp", ".ytdl"]);
 type CommandOptions = {
   signal?: AbortSignal;
   timeoutMs?: number;
+};
+
+export type LongVideoRuntimeCapabilities = {
+  supported: boolean;
+  strategyRequested: LongVideoStrategy;
+  ytDlpAvailable: boolean;
+  ffmpegAvailable: boolean;
+  tempDirWritable: boolean;
+  ytDlpCommand: string;
 };
 
 function normalizePotentialUrl(value: string): string {
@@ -130,6 +139,30 @@ async function runCommand(
   }
 }
 
+async function isCommandAvailable(command: string, args: string[]): Promise<boolean> {
+  try {
+    await runCommand(command, args, { timeoutMs: 15_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isTempDirWritable(): Promise<boolean> {
+  let tempDir: string | null = null;
+
+  try {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "youtube-analyzer-capability-"));
+    return true;
+  } catch {
+    return false;
+  } finally {
+    if (tempDir) {
+      await fs.rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+}
+
 function coerceDurationSeconds(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
     return value;
@@ -143,6 +176,83 @@ function coerceDurationSeconds(value: unknown): number | null {
   }
 
   return null;
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function extractHtmlAttribute(html: string, pattern: RegExp): string | null {
+  const match = pattern.exec(html);
+  const value = match?.[1];
+  return value ? decodeHtmlEntities(value.trim()) : null;
+}
+
+function extractDurationSecondsFromHtml(html: string): number | null {
+  const approximateDurationMs = /"approxDurationMs":"(\d+)"/.exec(html)?.[1];
+  if (approximateDurationMs) {
+    const milliseconds = Number(approximateDurationMs);
+    if (Number.isFinite(milliseconds) && milliseconds > 0) {
+      return Math.ceil(milliseconds / 1000);
+    }
+  }
+
+  const lengthSeconds =
+    /"lengthSeconds":"(\d+)"/.exec(html)?.[1] ?? /"lengthSeconds":(\d+)/.exec(html)?.[1] ?? null;
+
+  return coerceDurationSeconds(lengthSeconds);
+}
+
+async function fetchYouTubeMetadataFromWatchPage(
+  normalizedYoutubeUrl: string,
+  options: CommandOptions = {}
+): Promise<YtDlpMetadata> {
+  const response = await fetch(normalizedYoutubeUrl, {
+    method: "GET",
+    signal: options.signal,
+    headers: {
+      accept: "text/html,application/xhtml+xml",
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`YouTube watch page request failed with status ${response.status}.`);
+  }
+
+  const html = await response.text();
+  const durationSeconds = extractDurationSecondsFromHtml(html);
+  if (!durationSeconds) {
+    throw new Error("YouTube watch page did not expose a usable duration for this video.");
+  }
+
+  const title =
+    extractHtmlAttribute(html, /<meta\s+property="og:title"\s+content="([^"]*)"/i) ??
+    extractHtmlAttribute(html, /<meta\s+name="title"\s+content="([^"]*)"/i);
+  const uploader =
+    extractHtmlAttribute(html, /<link\s+itemprop="name"\s+content="([^"]*)"/i) ??
+    extractHtmlAttribute(html, /"ownerChannelName":"([^"]*)"/i);
+  const uploadDate = extractHtmlAttribute(html, /<meta\s+itemprop="datePublished"\s+content="([^"]*)"/i);
+  const liveStatus =
+    html.includes('"isLiveContent":true') || html.includes('"isLive":true')
+      ? "is_live"
+      : html.includes('"isUpcoming":true')
+        ? "is_upcoming"
+        : null;
+
+  return {
+    durationSeconds,
+    title,
+    uploader,
+    uploadDate,
+    liveStatus,
+  };
 }
 
 function formatYtDlpSectionTimestamp(seconds: number): string {
@@ -210,32 +320,42 @@ export async function getYouTubeMetadata(
   options: CommandOptions = {}
 ): Promise<YtDlpMetadata> {
   const ytDlp = getYtDlpCommand();
-  const { stdout } = await runCommand(
-    ytDlp.command,
-    [
-      ...ytDlp.args,
-      "--dump-single-json",
-      "--no-warnings",
-      "--skip-download",
-      "--no-playlist",
-      normalizedYoutubeUrl,
-    ],
-    options
-  );
+  try {
+    const { stdout } = await runCommand(
+      ytDlp.command,
+      [
+        ...ytDlp.args,
+        "--dump-single-json",
+        "--no-warnings",
+        "--skip-download",
+        "--no-playlist",
+        normalizedYoutubeUrl,
+      ],
+      options
+    );
 
-  const parsed = JSON.parse(stdout) as Record<string, unknown>;
-  const durationSeconds = coerceDurationSeconds(parsed.duration);
-  if (!durationSeconds) {
-    throw new Error("yt-dlp did not return a usable duration for this video. Long-video analysis requires a resolved duration.");
+    const parsed = JSON.parse(stdout) as Record<string, unknown>;
+    const durationSeconds = coerceDurationSeconds(parsed.duration);
+    if (!durationSeconds) {
+      throw new Error(
+        "yt-dlp did not return a usable duration for this video. Long-video analysis requires a resolved duration."
+      );
+    }
+
+    return {
+      durationSeconds,
+      title: typeof parsed.title === "string" ? parsed.title : null,
+      uploader: typeof parsed.uploader === "string" ? parsed.uploader : null,
+      uploadDate: typeof parsed.upload_date === "string" ? parsed.upload_date : null,
+      liveStatus: typeof parsed.live_status === "string" ? parsed.live_status : null,
+    };
+  } catch (error) {
+    if (options.signal?.aborted) {
+      throw error;
+    }
+
+    return await fetchYouTubeMetadataFromWatchPage(normalizedYoutubeUrl, options);
   }
-
-  return {
-    durationSeconds,
-    title: typeof parsed.title === "string" ? parsed.title : null,
-    uploader: typeof parsed.uploader === "string" ? parsed.uploader : null,
-    uploadDate: typeof parsed.upload_date === "string" ? parsed.upload_date : null,
-    liveStatus: typeof parsed.live_status === "string" ? parsed.live_status : null,
-  };
 }
 
 export async function downloadYouTubeVideo(
@@ -265,4 +385,22 @@ export async function downloadYouTubeVideoSegment(
     "youtube-analyzer-segment-",
     options
   );
+}
+
+export async function getLongVideoRuntimeCapabilities(
+  strategyRequested: LongVideoStrategy
+): Promise<LongVideoRuntimeCapabilities> {
+  const ytDlp = getYtDlpCommand();
+  const ytDlpAvailable = await isCommandAvailable(ytDlp.command, [...ytDlp.args, "--version"]);
+  const ffmpegAvailable = strategyRequested === "url_chunks" ? true : await isCommandAvailable("ffmpeg", ["-version"]);
+  const tempDirWritable = strategyRequested === "url_chunks" ? true : await isTempDirWritable();
+
+  return {
+    supported: ytDlpAvailable && ffmpegAvailable && tempDirWritable,
+    strategyRequested,
+    ytDlpAvailable,
+    ffmpegAvailable,
+    tempDirWritable,
+    ytDlpCommand: [ytDlp.command, ...ytDlp.args].join(" "),
+  };
 }

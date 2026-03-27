@@ -24,6 +24,13 @@
           "name": "GEMINI_API_KEY"
         },
         {
+          "description": "YouTube Data API v3 key required for get_youtube_video_metadata.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "YOUTUBE_API_KEY"
+        },
+        {
           "description": "Optional Gemini model override.",
           "isRequired": false,
           "format": "string",
