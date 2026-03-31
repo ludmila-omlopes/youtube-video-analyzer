@@ -6,8 +6,9 @@ An MCP server for analyzing public YouTube videos with Google Gemini. The packag
 
 - `analyze_youtube_video` for direct short-video or manual-clip analysis
 - `analyze_youtube_video_audio` for audio-only, transcript-grounded analysis of a public YouTube video
-- `analyze_long_youtube_video` for long videos with Files API-first handling and URL-chunk fallback
-- `continue_long_video_analysis` for follow-up questions on a long-video `sessionId`
+- `analyze_long_youtube_video` for local `stdio` long videos with Files API-first handling and URL-chunk fallback
+- `continue_long_video_analysis` for local `stdio` follow-up questions on a long-video `sessionId`
+- `start_long_youtube_video_analysis` and `get_long_youtube_video_analysis_job` for remote-safe async long analysis over HTTP
 - `get_youtube_video_metadata` for normalized public YouTube video metadata via the YouTube Data API
 - Automatic YouTube URL normalization for `watch`, `live`, `shorts`, `embed`, and `youtu.be` links
 - Structured JSON output in the video's detected dominant language by default
@@ -26,8 +27,11 @@ An MCP server for analyzing public YouTube videos with Google Gemini. The packag
 - `src/app/session-store.ts`: session store contract plus in-memory implementation
 - `src/app/create-service.ts`: local and cloud service factories
 - `src/app/create-public-remote-service.ts`: public remote HTTP service factory
+- `src/app/long-analysis-jobs.ts`: async long-analysis job backend contract
+- `src/app/bullmq-long-analysis-jobs.ts`: BullMQ-backed Redis queue for remote long analysis
 - `src/http/mcp.ts`: web-standard Streamable HTTP adapter
 - `src/dev/hosted.ts`: local hosted-dev HTTP server for `/` and `/api/mcp`
+- `src/worker.ts`: BullMQ worker entrypoint for remote long analysis jobs
 - `api/mcp.ts`: Vercel route wrapper
 - `src/lib/schemas.ts`: input and output schemas plus JSON helpers
 - `src/lib/youtube.ts`: YouTube URL normalization and `yt-dlp` helpers
@@ -95,7 +99,14 @@ npm run build
 npm run start:http
 ```
 
-## Remote MCP on Vercel
+For the remote long-analysis worker:
+
+```bash
+npm run build
+npm run start:worker
+```
+
+## Remote MCP over HTTP
 
 The repository includes a public remote MCP entrypoint for web-standard Streamable HTTP:
 
@@ -108,43 +119,55 @@ Remote deployment environment variables:
 
 - `GEMINI_API_KEY`
 - `YOUTUBE_API_KEY`
+- `REDIS_URL` or `REDIS_HOST` / `REDIS_PORT` for remote async long-video jobs
 
 Remote runtime behavior:
 
 - remote Gemini calls use the server-owned `GEMINI_API_KEY`
 - remote metadata calls use the server-owned `YOUTUBE_API_KEY`
 - remote MCP access is plug and play at `/api/mcp`
-- remote `analyze_long_youtube_video` forces `strategy: "url_chunks"` to avoid download/upload work in the HTTP runtime
-- remote long-video sessions remain in-memory and are only relevant for previously created uploaded-file sessions
+- remote HTTP exposes `start_long_youtube_video_analysis` and `get_long_youtube_video_analysis_job`
+- remote long-video analysis runs in a BullMQ worker backed by Redis instead of blocking the MCP request
+- remote workers force `strategy: "url_chunks"` to avoid download/upload work in the HTTP runtime
+- blocking `analyze_long_youtube_video` and `continue_long_video_analysis` are reserved for local `stdio` / MCP-task clients
 - local `stdio` usage still uses environment variables and local config only
 
 Important limitation for public HTTP deployments:
 
-- `sessionId` is an opaque identifier sufficient for `continue_long_video_analysis`
-- long-video sessions are volatile in the public HTTP mode
-- restart, redeploy, expiration, or multi-instance routing can invalidate a previous `sessionId`
+- remote long-video analysis returns a `jobId`, not a `sessionId`
+- clients must poll `get_long_youtube_video_analysis_job` until the job reaches `completed` or `failed`
+- local uploaded-file follow-up sessions still use `sessionId`
 
 ## Deploying on Render
 
-The repository includes a `render.yaml` Blueprint for a single Render web service.
+The repository includes a `render.yaml` Blueprint for a three-service Render setup:
+
+- a web service for the hosted MCP HTTP endpoint
+- a background worker for long-video analysis jobs
+- a Key Value instance for BullMQ / Redis job state
 
 What it configures:
 
 - build command: `npm ci && npm run build`
 - start command: `npm run start:http`
+- worker start command: `npm run start:worker`
 - health check path: `/healthz`
 - required secrets: `GEMINI_API_KEY`, `YOUTUBE_API_KEY`
+- shared `REDIS_HOST` / `REDIS_PORT` on the web service and worker from the Render Key Value instance
+- Key Value `maxmemoryPolicy: noeviction` for queue safety
 
 Render-specific runtime behavior in this repo:
 
 - the hosted HTTP server binds to `0.0.0.0:$PORT` when Render injects `PORT`
 - the root route reports the public MCP URL using Render's forwarded host/protocol headers
-- `analyze_long_youtube_video` still forces `strategy: "url_chunks"` in remote HTTP mode, so Render does not need local `yt-dlp` or `ffmpeg` for the public web service path
+- the web service responds quickly for remote long analysis by enqueueing Redis jobs
+- the worker processes queued long-video jobs off the request path
+- remote long-video jobs still force `strategy: "url_chunks"` in cloud mode, so Render does not need local `yt-dlp` or `ffmpeg` for the public web service path
 
 Recommended plan choice:
 
-- the sample Blueprint uses `plan: free` to avoid creating a paid service by default
-- for production MCP usage, change the service plan to `starter` or higher so the service stays warm and long requests are less likely to be impacted by free-tier sleep behavior
+- the sample Blueprint uses `starter` plans because Render background workers are not available on `free`
+- use the same region for the web service, worker, and Key Value instance
 
 ## Using the npm package
 
@@ -291,16 +314,47 @@ Strategy policy:
 - `auto`: prefers uploaded-file analysis first, then falls back to URL chunks if needed
 - `uploaded_file`: deterministic Files API path for long videos
 - `url_chunks`: explicit preview-oriented path for public YouTube videos that avoids local download/upload work
-- public remote HTTP: forces `url_chunks` regardless of the requested strategy
+- public remote HTTP workers: force `url_chunks` regardless of the requested strategy
 
 Behavior:
 
 - Uses `yt-dlp` to resolve duration metadata for long videos when available, with a watch-page fallback for public videos in cloud-style runtimes
 - In local `stdio`, `auto` prefers uploaded-file analysis before trying direct URL chunks
-- In public remote HTTP, long-video analysis skips the uploaded-file path and runs `url_chunks`
+- In public remote HTTP, use `start_long_youtube_video_analysis` plus `get_long_youtube_video_analysis_job` instead of calling this tool directly
 - Returns a `sessionId` when an uploaded-file session is created successfully
 - Emits structured stderr logs for strategy choice, chunk progress, retries, fallbacks, and failures
 - Returns `structuredContent` on success and `isError: true` on handled runtime failures
+
+### `start_long_youtube_video_analysis`
+
+Inputs:
+
+- same input fields as `analyze_long_youtube_video`
+
+Behavior:
+
+- Enqueues a BullMQ long-analysis job in Redis and returns immediately with a `jobId`
+- Intended for remote HTTP clients such as Claude that cannot wait for long-running tool calls
+- The background worker runs the existing long-video analysis service and stores the final result in BullMQ job state
+
+Success output:
+
+- `jobId`: durable queue identifier
+- `status`: always `queued`
+- `pollTool`: always `get_long_youtube_video_analysis_job`
+- `estimatedNextPollSeconds`: suggested polling interval
+
+### `get_long_youtube_video_analysis_job`
+
+Inputs:
+
+- `jobId`: job identifier returned by `start_long_youtube_video_analysis`
+
+Behavior:
+
+- Polls BullMQ / Redis state for the queued long-analysis job
+- Returns `queued`, `running`, `completed`, `failed`, `cancelled`, or `not_found`
+- Includes the final long-analysis structured result when the job is complete
 
 ### `continue_long_video_analysis`
 
@@ -311,12 +365,18 @@ Inputs:
 - `model`: optional model override
 - `responseSchemaJson`: optional JSON schema string for structured follow-up output
 
+Behavior:
+
+- Local `stdio` / MCP-task follow-up tool only
+- When possible, this tool reuses the cached uploaded asset created by `analyze_long_youtube_video` instead of re-downloading the video.
+
 ## Notes
 
 - The server uses the current MCP `registerTool(...)` API and supports both local `stdio` and remote Streamable HTTP adapters.
 - The server normalizes supported YouTube URL formats into a canonical `https://www.youtube.com/watch?v=...` URL before sending the request to Gemini.
 - `get_youtube_video_metadata` uses the YouTube Data API and does not call Gemini.
 - If `YT_DLP_PATH` is not set, the server will try `python -m yt_dlp` automatically.
+- Remote async long-analysis jobs require `REDIS_URL` or `REDIS_HOST` / `REDIS_PORT` plus a running worker process.
 - Cache reuse is an optimization for repeated analysis on the same uploaded asset; it does not increase the effective model context window.
 - Local `stdio` sessions use an in-memory store by default.
-- Public HTTP deployments use a shared in-memory cloud session store and expose `/api/mcp` without additional authentication.
+- Public HTTP deployments expose `/api/mcp` without additional authentication and use Redis-backed BullMQ jobs for remote long analysis when Redis connection settings are configured.

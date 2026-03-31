@@ -1,12 +1,50 @@
 services:
+  - type: keyvalue
+    name: youtube-analyzer-redis
+    plan: starter
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
   - type: web
     name: youtube-analyzer-mcp
     runtime: node
-    plan: free
+    plan: starter
     buildCommand: npm ci && npm run build
     startCommand: npm run start:http
     healthCheckPath: /healthz
     envVars:
+      - key: REDIS_HOST
+        fromService:
+          type: keyvalue
+          name: youtube-analyzer-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: keyvalue
+          name: youtube-analyzer-redis
+          property: port
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+
+  - type: worker
+    name: youtube-analyzer-mcp-worker
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:worker
+    envVars:
+      - key: REDIS_HOST
+        fromService:
+          type: keyvalue
+          name: youtube-analyzer-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: keyvalue
+          name: youtube-analyzer-redis
+          property: port
       - key: GEMINI_API_KEY
         sync: false
       - key: YOUTUBE_API_KEY

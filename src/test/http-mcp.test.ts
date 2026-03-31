@@ -1,10 +1,36 @@
 import assert from "node:assert/strict";
 
+import type { LongAnalysisJobs } from "../app/long-analysis-jobs.js";
 import { createMcpHttpHandler } from "../http/mcp.js";
 import { createConnectedHttpClient } from "./test-helpers.js";
 
 export async function run(): Promise<void> {
+  const longAnalysisJobs: LongAnalysisJobs = {
+    async enqueueLongAnalysis() {
+      return {
+        jobId: "job-http-1",
+        status: "queued",
+        pollTool: "get_long_youtube_video_analysis_job",
+        estimatedNextPollSeconds: 5,
+      };
+    },
+    async getLongAnalysisJob(jobId) {
+      return {
+        jobId,
+        status: "running",
+        progress: {
+          progress: 35,
+          total: 100,
+          message: "Analyzing chunks",
+        },
+        result: null,
+        error: null,
+      };
+    },
+  };
+
   const handler = createMcpHttpHandler({
+    longAnalysisJobs,
     service: {
       async analyzeShort(input) {
         return {
@@ -133,6 +159,48 @@ export async function run(): Promise<void> {
         safetyOrAccuracyNotes: [],
       },
     });
+
+    const startLongResult = await client.callTool({
+      name: "start_long_youtube_video_analysis",
+      arguments: {
+        youtubeUrl: "https://www.youtube.com/watch?v=test",
+      },
+    });
+
+    assert.deepEqual(startLongResult.structuredContent, {
+      jobId: "job-http-1",
+      status: "queued",
+      pollTool: "get_long_youtube_video_analysis_job",
+      estimatedNextPollSeconds: 5,
+    });
+
+    const getLongResult = await client.callTool({
+      name: "get_long_youtube_video_analysis_job",
+      arguments: {
+        jobId: "job-http-1",
+      },
+    });
+
+    assert.deepEqual(getLongResult.structuredContent, {
+      jobId: "job-http-1",
+      status: "running",
+      progress: {
+        progress: 35,
+        total: 100,
+        message: "Analyzing chunks",
+      },
+      result: null,
+      error: null,
+    });
+
+    const missingLongToolResult = await client.callTool({
+      name: "analyze_long_youtube_video",
+      arguments: {
+        youtubeUrl: "https://www.youtube.com/watch?v=test",
+      },
+    });
+
+    assert.equal(missingLongToolResult.isError, true);
 
     const metadataResult = await client.callTool({
       name: "get_youtube_video_metadata",

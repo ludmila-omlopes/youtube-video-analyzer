@@ -17,6 +17,7 @@
     "dist/dev",
     "dist/index.js",
     "dist/server.js",
+    "dist/worker.js",
     "dist/app",
     "dist/http",
     "dist/lib",
@@ -36,6 +37,7 @@
     "dev:hosted": "tsx src/dev/hosted.ts",
     "release:check": "node scripts/release-check.mjs",
     "start:http": "node dist/dev/hosted.js",
+    "start:worker": "node dist/worker.js",
     "start": "node bin/youtube-video-analyzer-mcp.js",
     "test": "npm run build && node dist/test/index.js"
   },
@@ -51,7 +53,9 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "bullmq": "^5.71.1",
     "dotenv": "^16.6.1",
+    "ioredis": "^5.10.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {

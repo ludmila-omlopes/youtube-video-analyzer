@@ -6,6 +6,7 @@ import { run as runHostedDevTests } from "./hosted-dev.test.js";
 import { run as runHttpMcpTests } from "./http-mcp.test.js";
 import { run as runPublicRemoteServiceTests } from "./public-remote-service.test.js";
 import { run as runServerAudioToolTests } from "./server-audio-tool.test.js";
+import { run as runServerAsyncLongToolTests } from "./server-async-long-tool.test.js";
 import { run as runServerFollowUpToolTests } from "./server-follow-up-tool.test.js";
 import { run as runServerLongToolTests } from "./server-long-tool.test.js";
 import { run as runServerMetadataToolTests } from "./server-metadata-tool.test.js";
@@ -25,6 +26,7 @@ const suites = [
   ["http-mcp", runHttpMcpTests],
   ["public-remote-service", runPublicRemoteServiceTests],
   ["server-audio-tool", runServerAudioToolTests],
+  ["server-async-long-tool", runServerAsyncLongToolTests],
   ["server-follow-up-tool", runServerFollowUpToolTests],
   ["server-long-tool", runServerLongToolTests],
   ["server-metadata-tool", runServerMetadataToolTests],

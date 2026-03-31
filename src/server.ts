@@ -2,6 +2,7 @@ import { InMemoryTaskMessageQueue } from "@modelcontextprotocol/sdk/experimental
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, GetTaskResult, Task } from "@modelcontextprotocol/sdk/types.js";
 
+import type { LongAnalysisJobs } from "./app/long-analysis-jobs.js";
 import { createVideoAnalysisService } from "./app/create-service.js";
 import type { VideoAnalysisServiceLike } from "./app/video-analysis-service.js";
 import type { AnalysisExecutionContext } from "./lib/analysis.js";
@@ -14,16 +15,22 @@ import {
   followUpToolInputSchema,
   followUpToolOutputSchema,
   formatJson,
+  getLongAnalysisJobToolInputSchema,
+  getLongAnalysisJobToolOutputSchema,
   longToolInputSchema,
   longToolOutputSchema,
   metadataToolInputSchema,
   metadataToolOutputSchema,
   shortToolInputSchema,
   shortToolOutputSchema,
+  startLongAnalysisJobToolOutputSchema,
   type FollowUpToolInput,
   type FollowUpToolOutput,
+  type GetLongAnalysisJobToolInput,
+  type GetLongAnalysisJobToolOutput,
   type LongToolInput,
   type LongToolOutput,
+  type StartLongAnalysisJobToolOutput,
 } from "./lib/schemas.js";
 import { ManagedTaskStore } from "./lib/task-store.js";
 import type { ProgressReporter } from "./lib/types.js";
@@ -54,7 +61,11 @@ type TaskCreateExtra = RequestExtra & {
 export type CreateServerOptions = {
   service?: VideoAnalysisServiceLike;
   taskStore?: ManagedTaskStore;
+  runtimeMode?: "local" | "cloud";
+  longAnalysisJobs?: LongAnalysisJobs | null;
 };
+
+type LongAnalysisToolMode = "task_tools" | "async_job_tools" | "none";
 
 function createSuccessToolResult(structuredContent: StructuredSuccess) {
   return {
@@ -214,6 +225,9 @@ async function runLongTask<Args, Result extends StructuredSuccess>(params: {
 export function createServer(options: CreateServerOptions = {}): McpServer {
   const taskStore = options.taskStore ?? new ManagedTaskStore();
   const service = options.service ?? createVideoAnalysisService();
+  const runtimeMode = options.runtimeMode ?? "local";
+  const longAnalysisToolMode: LongAnalysisToolMode =
+    runtimeMode === "cloud" ? (options.longAnalysisJobs ? "async_job_tools" : "none") : "task_tools";
   const server = new McpServer(SERVER_INFO, {
     capabilities: {
       logging: {},
@@ -378,101 +392,213 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
     }
   );
 
-  server.experimental.tasks.registerToolTask<typeof longToolInputSchema, typeof longToolOutputSchema>(
-    "analyze_long_youtube_video",
-    {
-      title: "Analyze Long YouTube Video",
-      description: [
-        "Analyze a long public YouTube video with Gemini long-video handling.",
-        "Auto mode prefers uploaded-file analysis first because Files API is the recommended path for long videos, and falls back to URL chunks when needed.",
-        "Direct YouTube URL chunking remains available as an explicit strategy for public videos, but should be treated as a preview-oriented convenience path.",
-      ].join(" "),
-      inputSchema: longToolInputSchema,
-      outputSchema: longToolOutputSchema,
-      execution: { taskSupport: "optional" },
-    },
-    {
-      async createTask(args: LongToolInput, extra) {
-        const logger = createRequestLogger("analyze_long_youtube_video");
+  const longAnalysisJobs = options.longAnalysisJobs;
+
+  if (longAnalysisToolMode === "async_job_tools" && longAnalysisJobs) {
+    server.registerTool(
+      "start_long_youtube_video_analysis",
+      {
+        title: "Start Long YouTube Video Analysis",
+        description: [
+          "Queue a long public YouTube video analysis job and return immediately with a jobId.",
+          "Use get_long_youtube_video_analysis_job to poll for progress and the final structured result.",
+        ].join(" "),
+        inputSchema: longToolInputSchema,
+        outputSchema: startLongAnalysisJobToolOutputSchema,
+      },
+      async ({ youtubeUrl, analysisPrompt, chunkModel, finalModel, strategy, preferCache, responseSchemaJson }, extra) => {
+        const logger = createRequestLogger("start_long_youtube_video_analysis");
         const startedAt = Date.now();
-
-        return runLongTask<LongToolInput, LongToolOutput>({
-          toolName: "analyze_long_youtube_video",
-          taskStore,
-          extra: extra as unknown as TaskCreateExtra,
-          args,
-          logger,
-          startedAt,
-          execute: (input, context) => service.analyzeLong(input, context),
-          onStartLog: {
-            youtubeUrl: args.youtubeUrl,
-            strategyRequested: args.strategy ?? "auto",
-            chunkModel: args.chunkModel ?? null,
-            finalModel: args.finalModel ?? null,
-            preferCache: args.preferCache ?? null,
-          },
-          onSuccessLog: (result) => ({
-            strategyRequested: result.strategyRequested,
-            strategyUsed: result.strategyUsed,
-            chunkCount: result.chunkCount,
-            cacheUsed: result.cacheUsed,
-            sessionId: result.sessionId,
-          }),
+        logger.info("tool.start", {
+          youtubeUrl,
+          strategyRequested: strategy ?? "auto",
+          chunkModel: chunkModel ?? null,
+          finalModel: finalModel ?? null,
+          preferCache: preferCache ?? null,
         });
-      },
-      async getTask(_args, { taskId, taskStore: requestTaskStore }) {
-        return await requestTaskStore.getTask(taskId);
-      },
-      async getTaskResult(_args, { taskId, taskStore: requestTaskStore }): Promise<CallToolResult> {
-        return (await requestTaskStore.getTaskResult(taskId)) as CallToolResult;
-      },
-    }
-  );
 
-  server.experimental.tasks.registerToolTask<typeof followUpToolInputSchema, typeof followUpToolOutputSchema>(
-    "continue_long_video_analysis",
-    {
-      title: "Continue Long Video Analysis",
-      description: [
-        "Continue analyzing a previously uploaded long-video session.",
-        "When possible, this tool reuses the cached uploaded asset created by analyze_long_youtube_video instead of re-downloading the video.",
-      ].join(" "),
-      inputSchema: followUpToolInputSchema,
-      outputSchema: followUpToolOutputSchema,
-      execution: { taskSupport: "optional" },
-    },
-    {
-      async createTask(args: FollowUpToolInput, extra) {
-        const logger = createRequestLogger("continue_long_video_analysis");
+        try {
+          const result = await longAnalysisJobs.enqueueLongAnalysis({
+            youtubeUrl,
+            analysisPrompt,
+            chunkModel,
+            finalModel,
+            strategy,
+            preferCache,
+            responseSchemaJson,
+          });
+
+          logger.info("tool.success", {
+            durationMs: Date.now() - startedAt,
+            youtubeUrl,
+            strategyRequested: strategy ?? "auto",
+            jobId: result.jobId,
+            status: result.status,
+          });
+          return createSuccessToolResult(result as unknown as StartLongAnalysisJobToolOutput);
+        } catch (error) {
+          const diagnostic = asDiagnosticError(error, {
+            tool: "start_long_youtube_video_analysis",
+            code: "LONG_ANALYSIS_JOB_ENQUEUE_FAILED",
+            stage: "unknown",
+            message: "Failed to enqueue long-video analysis job.",
+          });
+          logger.error("tool.failure", {
+            durationMs: Date.now() - startedAt,
+            youtubeUrl,
+            code: diagnostic.code,
+            stage: diagnostic.stage,
+            message: diagnostic.message,
+            retryable: diagnostic.retryable,
+            causeMessage: diagnostic.causeMessage,
+            details: diagnostic.details,
+          });
+          return createErrorToolResult("start_long_youtube_video_analysis", logger.requestId, diagnostic);
+        }
+      }
+    );
+
+    server.registerTool(
+      "get_long_youtube_video_analysis_job",
+      {
+        title: "Get Long YouTube Video Analysis Job",
+        description: "Get the current status, progress, and final result for a queued long YouTube video analysis job.",
+        inputSchema: getLongAnalysisJobToolInputSchema,
+        outputSchema: getLongAnalysisJobToolOutputSchema,
+      },
+      async ({ jobId }: GetLongAnalysisJobToolInput, extra) => {
+        const logger = createRequestLogger("get_long_youtube_video_analysis_job");
         const startedAt = Date.now();
+        logger.info("tool.start", { jobId });
 
-        return runLongTask<FollowUpToolInput, FollowUpToolOutput>({
-          toolName: "continue_long_video_analysis",
-          taskStore,
-          extra: extra as unknown as TaskCreateExtra,
-          args,
-          logger,
-          startedAt,
-          execute: (input, context) => service.continueLong(input, context),
-          onStartLog: {
-            sessionId: args.sessionId,
-            model: args.model ?? null,
-          },
-          onSuccessLog: (result) => ({
-            sessionId: result.sessionId,
-            cacheUsed: result.cacheUsed,
-            model: result.model,
-          }),
-        });
+        try {
+          const result = await longAnalysisJobs.getLongAnalysisJob(jobId);
+          logger.info("tool.success", {
+            durationMs: Date.now() - startedAt,
+            jobId,
+            status: result.status,
+          });
+          return createSuccessToolResult(result as unknown as GetLongAnalysisJobToolOutput);
+        } catch (error) {
+          const diagnostic = asDiagnosticError(error, {
+            tool: "get_long_youtube_video_analysis_job",
+            code: "LONG_ANALYSIS_JOB_LOOKUP_FAILED",
+            stage: "unknown",
+            message: "Failed to fetch long-video analysis job state.",
+          });
+          logger.error("tool.failure", {
+            durationMs: Date.now() - startedAt,
+            jobId,
+            code: diagnostic.code,
+            stage: diagnostic.stage,
+            message: diagnostic.message,
+            retryable: diagnostic.retryable,
+            causeMessage: diagnostic.causeMessage,
+            details: diagnostic.details,
+          });
+          return createErrorToolResult("get_long_youtube_video_analysis_job", logger.requestId, diagnostic);
+        }
+      }
+    );
+  }
+
+  if (longAnalysisToolMode === "task_tools") {
+    server.experimental.tasks.registerToolTask<typeof longToolInputSchema, typeof longToolOutputSchema>(
+      "analyze_long_youtube_video",
+      {
+        title: "Analyze Long YouTube Video",
+        description: [
+          "Analyze a long public YouTube video with Gemini long-video handling.",
+          "Auto mode prefers uploaded-file analysis first because Files API is the recommended path for long videos, and falls back to URL chunks when needed.",
+          "Direct YouTube URL chunking remains available as an explicit strategy for public videos, but should be treated as a preview-oriented convenience path.",
+        ].join(" "),
+        inputSchema: longToolInputSchema,
+        outputSchema: longToolOutputSchema,
+        execution: { taskSupport: "optional" },
       },
-      async getTask(_args, { taskId, taskStore: requestTaskStore }) {
-        return await requestTaskStore.getTask(taskId);
+      {
+        async createTask(args: LongToolInput, extra) {
+          const logger = createRequestLogger("analyze_long_youtube_video");
+          const startedAt = Date.now();
+
+          return runLongTask<LongToolInput, LongToolOutput>({
+            toolName: "analyze_long_youtube_video",
+            taskStore,
+            extra: extra as unknown as TaskCreateExtra,
+            args,
+            logger,
+            startedAt,
+            execute: (input, context) => service.analyzeLong(input, context),
+            onStartLog: {
+              youtubeUrl: args.youtubeUrl,
+              strategyRequested: args.strategy ?? "auto",
+              chunkModel: args.chunkModel ?? null,
+              finalModel: args.finalModel ?? null,
+              preferCache: args.preferCache ?? null,
+            },
+            onSuccessLog: (result) => ({
+              strategyRequested: result.strategyRequested,
+              strategyUsed: result.strategyUsed,
+              chunkCount: result.chunkCount,
+              cacheUsed: result.cacheUsed,
+              sessionId: result.sessionId,
+            }),
+          });
+        },
+        async getTask(_args, { taskId, taskStore: requestTaskStore }) {
+          return await requestTaskStore.getTask(taskId);
+        },
+        async getTaskResult(_args, { taskId, taskStore: requestTaskStore }): Promise<CallToolResult> {
+          return (await requestTaskStore.getTaskResult(taskId)) as CallToolResult;
+        },
+      }
+    );
+
+    server.experimental.tasks.registerToolTask<typeof followUpToolInputSchema, typeof followUpToolOutputSchema>(
+      "continue_long_video_analysis",
+      {
+        title: "Continue Long Video Analysis",
+        description: [
+          "Continue analyzing a previously uploaded long-video session.",
+          "When possible, this tool reuses the cached uploaded asset created by analyze_long_youtube_video instead of re-downloading the video.",
+        ].join(" "),
+        inputSchema: followUpToolInputSchema,
+        outputSchema: followUpToolOutputSchema,
+        execution: { taskSupport: "optional" },
       },
-      async getTaskResult(_args, { taskId, taskStore: requestTaskStore }): Promise<CallToolResult> {
-        return (await requestTaskStore.getTaskResult(taskId)) as CallToolResult;
-      },
-    }
-  );
+      {
+        async createTask(args: FollowUpToolInput, extra) {
+          const logger = createRequestLogger("continue_long_video_analysis");
+          const startedAt = Date.now();
+
+          return runLongTask<FollowUpToolInput, FollowUpToolOutput>({
+            toolName: "continue_long_video_analysis",
+            taskStore,
+            extra: extra as unknown as TaskCreateExtra,
+            args,
+            logger,
+            startedAt,
+            execute: (input, context) => service.continueLong(input, context),
+            onStartLog: {
+              sessionId: args.sessionId,
+              model: args.model ?? null,
+            },
+            onSuccessLog: (result) => ({
+              sessionId: result.sessionId,
+              cacheUsed: result.cacheUsed,
+              model: result.model,
+            }),
+          });
+        },
+        async getTask(_args, { taskId, taskStore: requestTaskStore }) {
+          return await requestTaskStore.getTask(taskId);
+        },
+        async getTaskResult(_args, { taskId, taskStore: requestTaskStore }): Promise<CallToolResult> {
+          return (await requestTaskStore.getTaskResult(taskId)) as CallToolResult;
+        },
+      }
+    );
+  }
 
   return server;
 }

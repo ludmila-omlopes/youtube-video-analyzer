@@ -160,6 +160,10 @@ export const followUpToolInputSchema = {
   responseSchemaJson: z.string().trim().min(2).optional(),
 } satisfies z.ZodRawShape;
 
+export const getLongAnalysisJobToolInputSchema = {
+  jobId: z.string().trim().min(1),
+} satisfies z.ZodRawShape;
+
 export const metadataToolInputSchema = {
   youtubeUrl: z
     .string()
@@ -200,6 +204,19 @@ const tokenBudgetSchema = z.object({
 const modelsUsedSchema = z.object({
   chunkModel: z.string(),
   finalModel: z.string(),
+});
+
+const longAnalysisJobProgressSchema = z.object({
+  progress: z.number().nullable(),
+  total: z.number().nullable(),
+  message: nullableStringSchema,
+});
+
+const longAnalysisJobErrorSchema = z.object({
+  message: z.string(),
+  code: nullableStringSchema,
+  stage: nullableStringSchema,
+  retryable: z.boolean().nullable(),
 });
 
 const thumbnailSchema = z.object({
@@ -277,6 +294,21 @@ export const followUpToolOutputSchema = {
   analysis: jsonObjectSchema,
 } satisfies z.ZodRawShape;
 
+export const startLongAnalysisJobToolOutputSchema = {
+  jobId: z.string(),
+  status: z.literal("queued"),
+  pollTool: z.literal("get_long_youtube_video_analysis_job"),
+  estimatedNextPollSeconds: z.number(),
+} satisfies z.ZodRawShape;
+
+export const getLongAnalysisJobToolOutputSchema = {
+  jobId: z.string(),
+  status: z.enum(["queued", "running", "completed", "failed", "cancelled", "not_found"]),
+  progress: longAnalysisJobProgressSchema.nullable(),
+  result: z.object(longToolOutputSchema).nullable(),
+  error: longAnalysisJobErrorSchema.nullable(),
+} satisfies z.ZodRawShape;
+
 export const metadataToolOutputSchema = {
   youtubeUrl: z.string(),
   normalizedYoutubeUrl: z.string(),
@@ -309,12 +341,15 @@ export type ShortToolInput = z.infer<z.ZodObject<typeof shortToolInputSchema>>;
 export type AudioToolInput = z.infer<z.ZodObject<typeof audioToolInputSchema>>;
 export type LongToolInput = z.infer<z.ZodObject<typeof longToolInputSchema>>;
 export type FollowUpToolInput = z.infer<z.ZodObject<typeof followUpToolInputSchema>>;
+export type GetLongAnalysisJobToolInput = z.infer<z.ZodObject<typeof getLongAnalysisJobToolInputSchema>>;
 export type MetadataToolInput = z.infer<z.ZodObject<typeof metadataToolInputSchema>>;
 
 export type ShortToolOutput = z.infer<z.ZodObject<typeof shortToolOutputSchema>>;
 export type AudioToolOutput = z.infer<z.ZodObject<typeof audioToolOutputSchema>>;
 export type LongToolOutput = z.infer<z.ZodObject<typeof longToolOutputSchema>>;
 export type FollowUpToolOutput = z.infer<z.ZodObject<typeof followUpToolOutputSchema>>;
+export type StartLongAnalysisJobToolOutput = z.infer<z.ZodObject<typeof startLongAnalysisJobToolOutputSchema>>;
+export type GetLongAnalysisJobToolOutput = z.infer<z.ZodObject<typeof getLongAnalysisJobToolOutputSchema>>;
 export type MetadataToolOutput = z.infer<z.ZodObject<typeof metadataToolOutputSchema>>;
 
 export function parseSchema(
