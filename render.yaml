@@ -6,7 +6,6 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm run start:http
     healthCheckPath: /healthz
-    maxShutdownDelaySeconds: 120
     envVars:
       - key: GEMINI_API_KEY
         sync: false

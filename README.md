@@ -134,7 +134,6 @@ What it configures:
 - start command: `npm run start:http`
 - health check path: `/healthz`
 - required secrets: `GEMINI_API_KEY`, `YOUTUBE_API_KEY`
-- graceful shutdown window: `120` seconds for redeploys
 
 Render-specific runtime behavior in this repo:
 
