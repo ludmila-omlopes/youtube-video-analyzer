@@ -217,7 +217,7 @@ export function createBullMqLongAnalysisWorker(
 
   return new Worker<LongToolInput, LongToolOutput>(
     queueName,
-    async (job, _token, signal) => {
+    async (job) => {
       const logger = createRequestLogger("analyze_long_youtube_video");
       await job.updateProgress({
         progress: 0,
@@ -228,7 +228,9 @@ export function createBullMqLongAnalysisWorker(
       const context: AnalysisExecutionContext = {
         logger,
         tool: "analyze_long_youtube_video",
-        abortSignal: signal,
+        // Remote async jobs do not expose distributed cancellation yet, and
+        // forwarding the worker callback signal changes the behavior of early
+        // metadata fetches compared with direct service execution.
         reportProgress: async (update) => {
           await job.updateProgress(serializeProgress(update));
         },
