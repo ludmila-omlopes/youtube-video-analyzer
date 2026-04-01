@@ -29,8 +29,10 @@ An MCP server for analyzing public YouTube videos with Google Gemini. The packag
 - `src/app/create-public-remote-service.ts`: public remote HTTP service factory
 - `src/app/long-analysis-jobs.ts`: async long-analysis job backend contract
 - `src/app/bullmq-long-analysis-jobs.ts`: BullMQ-backed Redis queue for remote long analysis
+- `src/app/queue-dashboard.ts`: authenticated BullMQ dashboard app for queue inspection
 - `src/http/mcp.ts`: web-standard Streamable HTTP adapter
 - `src/dev/hosted.ts`: local hosted-dev HTTP server for `/` and `/api/mcp`
+- `src/admin.ts`: BullMQ dashboard bootstrap
 - `src/worker.ts`: BullMQ worker entrypoint for remote long analysis jobs
 - `api/mcp.ts`: Vercel route wrapper
 - `src/lib/schemas.ts`: input and output schemas plus JSON helpers
@@ -106,6 +108,15 @@ npm run build
 npm run start:worker
 ```
 
+For the BullMQ dashboard:
+
+```bash
+set ADMIN_USERNAME=admin
+set ADMIN_PASSWORD=change-me
+npm run build
+npm run start:admin
+```
+
 ## Remote MCP over HTTP
 
 The repository includes a public remote MCP entrypoint for web-standard Streamable HTTP:
@@ -140,20 +151,24 @@ Important limitation for public HTTP deployments:
 
 ## Deploying on Render
 
-The repository includes a `render.yaml` Blueprint for a three-service Render setup:
+The repository includes a `render.yaml` Blueprint for a four-service Render setup:
 
 - a web service for the hosted MCP HTTP endpoint
 - a background worker for long-video analysis jobs
 - a Key Value instance for BullMQ / Redis job state
+- a BullMQ dashboard web service for queue inspection
 
 What it configures:
 
 - build command: `npm ci && npm run build`
 - start command: `npm run start:http`
 - worker start command: `npm run start:worker`
+- dashboard start command: `npm run start:admin`
 - health check path: `/healthz`
 - required secrets: `GEMINI_API_KEY`, `YOUTUBE_API_KEY`
 - shared `REDIS_HOST` / `REDIS_PORT` on the web service and worker from the Render Key Value instance
+- shared `REDIS_URL` on the dashboard service from the Render Key Value instance
+- dashboard secrets: `ADMIN_USERNAME`, `ADMIN_PASSWORD`
 - Key Value `maxmemoryPolicy: noeviction` for queue safety
 
 Render-specific runtime behavior in this repo:
@@ -162,12 +177,31 @@ Render-specific runtime behavior in this repo:
 - the root route reports the public MCP URL using Render's forwarded host/protocol headers
 - the web service responds quickly for remote long analysis by enqueueing Redis jobs
 - the worker processes queued long-video jobs off the request path
+- the dashboard exposes BullMQ queue state at `/admin/queues` with HTTP basic auth
 - remote long-video jobs still force `strategy: "url_chunks"` in cloud mode, so Render does not need local `yt-dlp` or `ffmpeg` for the public web service path
 
 Recommended plan choice:
 
 - the sample Blueprint uses `starter` plans because Render background workers are not available on `free`
 - use the same region for the web service, worker, and Key Value instance
+- on existing Blueprint-managed services, add `ADMIN_USERNAME` and `ADMIN_PASSWORD` manually in Render because `sync: false` secrets are only prompted during initial Blueprint creation
+
+## BullMQ Dashboard
+
+The repository includes a separate BullMQ dashboard service built with `bull-board`.
+
+Behavior:
+
+- route: `/admin/queues`
+- auth: HTTP basic auth using `ADMIN_USERNAME` and `ADMIN_PASSWORD`
+- mode: read-only by default through `BULL_BOARD_READ_ONLY=true`
+- queues: defaults to `LONG_ANALYSIS_JOB_QUEUE_NAME`, or use `BULL_BOARD_QUEUE_NAMES` with a comma-separated list
+
+This dashboard is separate from the MCP endpoint on purpose:
+
+- it avoids mixing admin UI traffic into the public MCP route
+- it can connect directly to the same Redis instance as the worker
+- it shows BullMQ jobs, which are not the same thing as Render's own Jobs UI
 
 ## Using the npm package
 
@@ -377,6 +411,7 @@ Behavior:
 - `get_youtube_video_metadata` uses the YouTube Data API and does not call Gemini.
 - If `YT_DLP_PATH` is not set, the server will try `python -m yt_dlp` automatically.
 - Remote async long-analysis jobs require `REDIS_URL` or `REDIS_HOST` / `REDIS_PORT` plus a running worker process.
+- The BullMQ dashboard requires `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and Redis connection settings.
 - Cache reuse is an optimization for repeated analysis on the same uploaded asset; it does not increase the effective model context window.
 - Local `stdio` sessions use an in-memory store by default.
 - Public HTTP deployments expose `/api/mcp` without additional authentication and use Redis-backed BullMQ jobs for remote long analysis when Redis connection settings are configured.

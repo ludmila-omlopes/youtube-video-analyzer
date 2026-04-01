@@ -1,0 +1,54 @@
+import "dotenv/config";
+
+import type { Server } from "node:http";
+import process from "node:process";
+
+import { createQueueDashboardApp } from "./app/queue-dashboard.js";
+
+async function main(): Promise<void> {
+  const dashboard = createQueueDashboardApp();
+  const server = await new Promise<Server>((resolve) => {
+    const listeningServer = dashboard.app.listen(dashboard.config.port, dashboard.config.host, () => {
+      console.log(`BullMQ dashboard listening on http://${dashboard.config.host}:${dashboard.config.port}`);
+      console.log(`Queues: ${dashboard.queueNames.join(", ")}`);
+      resolve(listeningServer);
+    });
+  });
+
+  let shuttingDown = false;
+  const shutdown = async (signal: NodeJS.Signals) => {
+    if (shuttingDown) {
+      return;
+    }
+
+    shuttingDown = true;
+    console.log(`Received ${signal}, closing BullMQ dashboard`);
+    server.close(async (error) => {
+      try {
+        await dashboard.close();
+      } catch (closeError) {
+        console.error(closeError instanceof Error ? closeError.stack || closeError.message : String(closeError));
+      }
+
+      if (error) {
+        console.error(error);
+        process.exitCode = 1;
+      }
+
+      process.exit();
+    });
+  };
+
+  process.once("SIGINT", () => {
+    void shutdown("SIGINT");
+  });
+  process.once("SIGTERM", () => {
+    void shutdown("SIGTERM");
+  });
+}
+
+main().catch((error) => {
+  const message = error instanceof Error ? error.stack || error.message : String(error);
+  console.error(message);
+  process.exit(1);
+});

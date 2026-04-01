@@ -5,6 +5,7 @@ import { run as runGeminiVideoPartTests } from "./gemini-video-parts.test.js";
 import { run as runHostedDevTests } from "./hosted-dev.test.js";
 import { run as runHttpMcpTests } from "./http-mcp.test.js";
 import { run as runPublicRemoteServiceTests } from "./public-remote-service.test.js";
+import { run as runQueueDashboardTests } from "./queue-dashboard.test.js";
 import { run as runServerAudioToolTests } from "./server-audio-tool.test.js";
 import { run as runServerAsyncLongToolTests } from "./server-async-long-tool.test.js";
 import { run as runServerFollowUpToolTests } from "./server-follow-up-tool.test.js";
@@ -25,6 +26,7 @@ const suites = [
   ["hosted-dev", runHostedDevTests],
   ["http-mcp", runHttpMcpTests],
   ["public-remote-service", runPublicRemoteServiceTests],
+  ["queue-dashboard", runQueueDashboardTests],
   ["server-audio-tool", runServerAudioToolTests],
   ["server-async-long-tool", runServerAsyncLongToolTests],
   ["server-follow-up-tool", runServerFollowUpToolTests],

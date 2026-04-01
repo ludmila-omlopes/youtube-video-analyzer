@@ -49,3 +49,23 @@ services:
         sync: false
       - key: YOUTUBE_API_KEY
         sync: false
+
+  - type: web
+    name: youtube-analyzer-mcp-admin
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:admin
+    healthCheckPath: /healthz
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: youtube-analyzer-redis
+          property: connectionString
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: BULL_BOARD_READ_ONLY
+        value: "true"
