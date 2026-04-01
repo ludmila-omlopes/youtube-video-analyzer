@@ -3,7 +3,9 @@ import { run as runGeminiStructuredOutputTests } from "./gemini-structured-outpu
 import { run as runGeminiLanguagePromptTests } from "./gemini-language-prompts.test.js";
 import { run as runGeminiVideoPartTests } from "./gemini-video-parts.test.js";
 import { run as runHostedDevTests } from "./hosted-dev.test.js";
+import { run as runHttpAuthTests } from "./http-auth.test.js";
 import { run as runHttpMcpTests } from "./http-mcp.test.js";
+import { run as runOAuthValidationTests } from "./oauth-validation.test.js";
 import { run as runPublicRemoteServiceTests } from "./public-remote-service.test.js";
 import { run as runQueueDashboardTests } from "./queue-dashboard.test.js";
 import { run as runServerAudioToolTests } from "./server-audio-tool.test.js";
@@ -24,7 +26,9 @@ const suites = [
   ["gemini-language-prompts", runGeminiLanguagePromptTests],
   ["gemini-video-parts", runGeminiVideoPartTests],
   ["hosted-dev", runHostedDevTests],
+  ["http-auth", runHttpAuthTests],
   ["http-mcp", runHttpMcpTests],
+  ["oauth-validation", runOAuthValidationTests],
   ["public-remote-service", runPublicRemoteServiceTests],
   ["queue-dashboard", runQueueDashboardTests],
   ["server-audio-tool", runServerAudioToolTests],

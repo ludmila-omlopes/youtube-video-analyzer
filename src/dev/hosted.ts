@@ -10,7 +10,9 @@ import {
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
-import { handleMcpHttpRequest } from "../http/mcp.js";
+import { OAUTH_PROTECTED_RESOURCE_METADATA_PATH } from "../lib/auth/protected-resource-metadata.js";
+import { handleProtectedMcpHttpRequest } from "../http/handle-protected-mcp-request.js";
+import { handleProtectedResourceMetadataRequest } from "../http/handle-protected-resource-metadata-request.js";
 
 type RouteHandler = (request: Request) => Promise<Response>;
 
@@ -145,18 +147,26 @@ function getMcpUrl(request: Request): string {
 export function resolveRoute(pathname: string, method: string): RouteHandler | Response {
   if (pathname === "/api/mcp") {
     if (method === "GET") {
-      return handleMcpHttpRequest;
+      return handleProtectedMcpHttpRequest;
     }
 
     if (method === "POST") {
-      return handleMcpHttpRequest;
+      return handleProtectedMcpHttpRequest;
     }
 
     if (method === "DELETE") {
-      return handleMcpHttpRequest;
+      return handleProtectedMcpHttpRequest;
     }
 
     return methodNotAllowed(["GET", "POST", "DELETE"]);
+  }
+
+  if (pathname === OAUTH_PROTECTED_RESOURCE_METADATA_PATH) {
+    if (method === "GET") {
+      return handleProtectedResourceMetadataRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
   }
 
   if (pathname === "/healthz") {

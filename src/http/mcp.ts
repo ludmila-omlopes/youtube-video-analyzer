@@ -3,7 +3,10 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { createBullMqLongAnalysisJobsFromEnv } from "../app/bullmq-long-analysis-jobs.js";
 import { createPublicRemoteVideoAnalysisService } from "../app/create-public-remote-service.js";
 import type { LongAnalysisJobs } from "../app/long-analysis-jobs.js";
+import { createPrincipalScopedLongAnalysisJobs } from "../app/principal-scoped-long-analysis-jobs.js";
+import { createPrincipalScopedService } from "../app/principal-scoped-service.js";
 import type { VideoAnalysisServiceLike } from "../app/video-analysis-service.js";
+import type { AuthPrincipal } from "../lib/auth/principal.js";
 import { createServer } from "../server.js";
 
 export type McpHttpHandlerOptions = {
@@ -12,16 +15,29 @@ export type McpHttpHandlerOptions = {
   longAnalysisJobs?: LongAnalysisJobs | null;
 };
 
-export function createMcpHttpHandler(options: McpHttpHandlerOptions = {}) {
-  const longAnalysisJobs = options.longAnalysisJobs ?? createBullMqLongAnalysisJobsFromEnv();
+export type McpHttpRequestContext = {
+  principal?: AuthPrincipal | null;
+};
 
-  return async function handleMcpHttpRequest(request: Request): Promise<Response> {
+export function createMcpHttpHandler(options: McpHttpHandlerOptions = {}) {
+  const baseLongAnalysisJobs = options.longAnalysisJobs ?? createBullMqLongAnalysisJobsFromEnv();
+
+  return async function handleMcpHttpRequest(
+    request: Request,
+    context: McpHttpRequestContext = {}
+  ): Promise<Response> {
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
     });
+    const baseService = options.service ?? (await options.createService?.()) ?? createPublicRemoteVideoAnalysisService();
+    const service = context.principal ? createPrincipalScopedService(baseService, context.principal) : baseService;
+    const longAnalysisJobs =
+      context.principal && baseLongAnalysisJobs
+        ? createPrincipalScopedLongAnalysisJobs(baseLongAnalysisJobs, context.principal)
+        : baseLongAnalysisJobs;
     const server = createServer({
-      service: options.service ?? (await options.createService?.()) ?? createPublicRemoteVideoAnalysisService(),
+      service,
       runtimeMode: "cloud",
       longAnalysisJobs,
     });

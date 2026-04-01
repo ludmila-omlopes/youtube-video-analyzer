@@ -126,17 +126,26 @@ The repository includes a public remote MCP entrypoint for web-standard Streamab
 
 The HTTP adapter is public and reuses the same MCP tool registration logic from `src/server.ts`.
 
+When OAuth is disabled, the remote MCP route is public. When enabled, the HTTP adapter acts as an OAuth 2.1-protected MCP resource server and expects bearer access tokens on `/api/mcp`.
+
 Remote deployment environment variables:
 
 - `GEMINI_API_KEY`
 - `YOUTUBE_API_KEY`
 - `REDIS_URL` or `REDIS_HOST` / `REDIS_PORT` for remote async long-video jobs
+- `OAUTH_ENABLED=true` to require bearer tokens for remote MCP access
+- `OAUTH_ISSUER`
+- `OAUTH_AUDIENCE`
+- `OAUTH_JWKS_URL`
+- `OAUTH_REQUIRED_SCOPE` (optional)
 
 Remote runtime behavior:
 
 - remote Gemini calls use the server-owned `GEMINI_API_KEY`
 - remote metadata calls use the server-owned `YOUTUBE_API_KEY`
-- remote MCP access is plug and play at `/api/mcp`
+- remote MCP access is plug and play at `/api/mcp` when `OAUTH_ENABLED` is not set
+- when `OAUTH_ENABLED=true`, unauthenticated MCP requests return `401` / `403` with `WWW-Authenticate` and a protected-resource metadata URL for MCP clients
+- the protected-resource metadata document is served at `/.well-known/oauth-protected-resource`
 - remote HTTP exposes `start_long_youtube_video_analysis` and `get_long_youtube_video_analysis_job`
 - remote long-video analysis runs in a BullMQ worker backed by Redis instead of blocking the MCP request
 - remote workers force `strategy: "url_chunks"` to avoid download/upload work in the HTTP runtime
