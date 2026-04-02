@@ -6,8 +6,11 @@ import { run as runHostedDevTests } from "./hosted-dev.test.js";
 import { run as runHttpAuthTests } from "./http-auth.test.js";
 import { run as runHttpMcpTests } from "./http-mcp.test.js";
 import { run as runOAuthValidationTests } from "./oauth-validation.test.js";
+import { run as runPrincipalScopedLongAnalysisJobsTests } from "./principal-scoped-long-analysis-jobs.test.js";
+import { run as runPrincipalScopedSessionStoreTests } from "./principal-scoped-session-store.test.js";
 import { run as runPublicRemoteServiceTests } from "./public-remote-service.test.js";
 import { run as runQueueDashboardTests } from "./queue-dashboard.test.js";
+import { run as runRemoteAccessStoreTests } from "./remote-access-store.test.js";
 import { run as runServerAudioToolTests } from "./server-audio-tool.test.js";
 import { run as runServerAsyncLongToolTests } from "./server-async-long-tool.test.js";
 import { run as runServerFollowUpToolTests } from "./server-follow-up-tool.test.js";
@@ -29,8 +32,11 @@ const suites = [
   ["http-auth", runHttpAuthTests],
   ["http-mcp", runHttpMcpTests],
   ["oauth-validation", runOAuthValidationTests],
+  ["principal-scoped-long-analysis-jobs", runPrincipalScopedLongAnalysisJobsTests],
+  ["principal-scoped-session-store", runPrincipalScopedSessionStoreTests],
   ["public-remote-service", runPublicRemoteServiceTests],
   ["queue-dashboard", runQueueDashboardTests],
+  ["remote-access-store", runRemoteAccessStoreTests],
   ["server-audio-tool", runServerAudioToolTests],
   ["server-async-long-tool", runServerAsyncLongToolTests],
   ["server-follow-up-tool", runServerFollowUpToolTests],

@@ -94,10 +94,12 @@ export async function run(): Promise<void> {
   const metadataRoute = resolveRoute(OAUTH_PROTECTED_RESOURCE_METADATA_PATH, "GET");
   assert.equal(metadataRoute instanceof Response, false);
 
-  const metadataResponse = await (metadataRoute as (request: Request) => Promise<Response>)(
-    new Request(`http://127.0.0.1:3010${OAUTH_PROTECTED_RESOURCE_METADATA_PATH}`)
-  );
-  assert.equal(metadataResponse.status, 404);
+  await withEnv({}, async () => {
+    const metadataResponse = await (metadataRoute as (request: Request) => Promise<Response>)(
+      new Request(`http://127.0.0.1:3010${OAUTH_PROTECTED_RESOURCE_METADATA_PATH}`)
+    );
+    assert.equal(metadataResponse.status, 404);
+  });
 
   await withEnv(
     {

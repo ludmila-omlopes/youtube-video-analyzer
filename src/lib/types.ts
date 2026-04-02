@@ -1,4 +1,4 @@
-﻿import type { LOW_MEDIA_RESOLUTION } from "./constants.js";
+import type { LOW_MEDIA_RESOLUTION } from "./constants.js";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -38,6 +38,7 @@ export type YtDlpMetadata = {
 
 export type AnalysisSession = {
   sessionId: string;
+  ownerId?: string;
   normalizedYoutubeUrl: string;
   uploadedFile: UploadedVideoHandle;
   cacheName?: string;
