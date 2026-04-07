@@ -1,7 +1,7 @@
 {
   "name": "@ludylops/youtube-video-analyzer-mcp",
   "mcpName": "io.github.ludmila-omlopes/youtube-video-analyzer",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "MCP stdio server for analyzing YouTube videos with Google Gemini",
   "repository": {
     "type": "git",
@@ -14,17 +14,20 @@
   },
   "files": [
     "bin",
-    "dist/admin.js",
+    "dist/*.js",
     "dist/dev",
-    "dist/index.js",
-    "dist/server.js",
-    "dist/worker.js",
     "dist/app",
+    "dist/auth-billing",
     "dist/http",
     "dist/lib",
+    "dist/platform-runtime",
+    "dist/workflow-packs",
+    "dist/youtube-core",
+    "public",
     "README.md",
     "LICENSE",
-    ".env.example"
+    ".env.example",
+    "server.json"
   ],
   "publishConfig": {
     "access": "public"

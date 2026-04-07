@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 
 import {
+  getRemoteAccountEntitlements,
   getRemoteAccountInitialCredits,
   mergeRemoteAccountOnUpsert,
   normalizeRemoteAccountFromStorage,
+  resolveRemoteAccountPlan,
 } from "../app/remote-account.js";
 import { getPrincipalKey, type AuthPrincipal } from "../lib/auth/principal.js";
 
@@ -27,14 +29,15 @@ export async function run(): Promise<void> {
     issuer: principal.issuer,
     createdAt: t0,
     updatedAt: t0,
+    plan: "free",
   };
 
   const normalized = normalizeRemoteAccountFromStorage(legacy, accountId);
   assert.ok(normalized);
-  assert.equal(normalized.plan, "free");
+  assert.equal(normalized.plan, "trial");
   assert.equal(normalized.status, "active");
   assert.equal(normalized.lastSeenAt, t0);
-  assert.equal(normalized.creditBalance, getRemoteAccountInitialCredits());
+  assert.equal(normalized.creditBalance, getRemoteAccountInitialCredits(process.env, "trial"));
 
   const merged = mergeRemoteAccountOnUpsert(normalized, principal, t1);
   assert.equal(merged.createdAt, t0);
@@ -46,7 +49,16 @@ export async function run(): Promise<void> {
   const fresh = mergeRemoteAccountOnUpsert(null, principal, t1);
   assert.equal(fresh.createdAt, t1);
   assert.equal(fresh.lastSeenAt, t1);
-  assert.equal(fresh.plan, "free");
+  assert.equal(fresh.plan, "trial");
   assert.equal(fresh.status, "active");
-  assert.equal(fresh.creditBalance, getRemoteAccountInitialCredits());
+  assert.equal(fresh.creditBalance, getRemoteAccountInitialCredits(process.env, "trial"));
+
+  assert.equal(resolveRemoteAccountPlan("business"), "business");
+  assert.equal(resolveRemoteAccountPlan("free"), "trial");
+
+  const builderEntitlements = getRemoteAccountEntitlements("builder");
+  assert.equal(builderEntitlements.apiKeysEnabled, true);
+  assert.equal(builderEntitlements.remoteMcpEnabled, true);
+  assert.equal(builderEntitlements.historyRetentionDays, 30);
+  assert.equal(builderEntitlements.monthlyIncludedCredits, 250);
 }

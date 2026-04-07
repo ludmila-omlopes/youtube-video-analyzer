@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 
 import { OAUTH_PROTECTED_RESOURCE_METADATA_PATH } from "../lib/auth/protected-resource-metadata.js";
 import {
@@ -8,6 +8,7 @@ import {
 } from "../dev/hosted.js";
 
 const OAUTH_ENV_KEYS = [
+  "ALLOW_UNAUTHENTICATED_HOSTED_DEV",
   "OAUTH_ENABLED",
   "OAUTH_ISSUER",
   "OAUTH_AUDIENCE",
@@ -69,27 +70,36 @@ export async function run(): Promise<void> {
 
   const rootRoute = resolveRoute("/", "GET");
   assert.equal(rootRoute instanceof Response, false);
+  const appRoute = resolveRoute("/app", "GET");
+  assert.equal(appRoute instanceof Response, false);
 
   const rootResponse = await (rootRoute as (request: Request) => Promise<Response>)(
     new Request("http://127.0.0.1:3010/")
   );
-  const payload = (await rootResponse.json()) as { ok: boolean; mcpUrl: string; settingsUrl?: string; authSignInUrl?: string };
+  const rootHtml = await rootResponse.text();
 
-  assert.equal(payload.ok, true);
-  assert.equal(payload.mcpUrl, "http://127.0.0.1:3010/api/mcp");
-  assert.equal("settingsUrl" in payload, false);
-  assert.equal("authSignInUrl" in payload, false);
+  assert.equal(rootResponse.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.match(rootHtml, /YouTube Analyzer \| YouTube Intelligence Platform/);
+  assert.match(rootHtml, /Render is the production path/);
+  assert.match(rootHtml, /\/api\/mcp/);
 
   const proxiedRootResponse = await (rootRoute as (request: Request) => Promise<Response>)(
     new Request("https://youtube-analyzer.onrender.com/")
   );
-  const proxiedPayload = (await proxiedRootResponse.json()) as { ok: boolean; mcpUrl: string };
+  const proxiedRootHtml = await proxiedRootResponse.text();
 
-  assert.equal(proxiedPayload.ok, true);
-  assert.equal(proxiedPayload.mcpUrl, "https://youtube-analyzer.onrender.com/api/mcp");
+  assert.equal(proxiedRootResponse.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.match(proxiedRootHtml, /Vercel is optional/);
+
+  const appResponse = await (appRoute as () => Promise<Response>)();
+  const appHtml = await appResponse.text();
+  assert.equal(appResponse.status, 200);
+  assert.match(appHtml, /Monetization Scan/);
 
   const mcpGetRoute = resolveRoute("/api/mcp", "GET");
   assert.equal(mcpGetRoute instanceof Response, false);
+  const webSessionRoute = resolveRoute("/api/web/session", "GET");
+  assert.equal(webSessionRoute instanceof Response, false);
 
   const metadataRoute = resolveRoute(OAUTH_PROTECTED_RESOURCE_METADATA_PATH, "GET");
   assert.equal(metadataRoute instanceof Response, false);
@@ -98,11 +108,46 @@ export async function run(): Promise<void> {
     const metadataResponse = await (metadataRoute as (request: Request) => Promise<Response>)(
       new Request(`http://127.0.0.1:3010${OAUTH_PROTECTED_RESOURCE_METADATA_PATH}`)
     );
-    assert.equal(metadataResponse.status, 404);
+    const metadataPayload = (await metadataResponse.json()) as { error: string };
+    assert.equal(metadataResponse.status, 503);
+    assert.equal(metadataPayload.error, "server_configuration_error");
+
+    const webSessionResponse = await (webSessionRoute as (request: Request) => Promise<Response>)(
+      new Request("http://127.0.0.1:3010/api/web/session")
+    );
+    const webSessionPayload = (await webSessionResponse.json()) as {
+      error: { code: string };
+    };
+    assert.equal(webSessionResponse.status, 503);
+    assert.equal(webSessionPayload.error.code, "HOSTED_AUTH_CONFIGURATION_INVALID");
   });
 
   await withEnv(
     {
+      ALLOW_UNAUTHENTICATED_HOSTED_DEV: "true",
+    },
+    async () => {
+      const metadataResponse = await (metadataRoute as (request: Request) => Promise<Response>)(
+        new Request(`http://127.0.0.1:3010${OAUTH_PROTECTED_RESOURCE_METADATA_PATH}`)
+      );
+      assert.equal(metadataResponse.status, 404);
+
+      const webSessionResponse = await (webSessionRoute as (request: Request) => Promise<Response>)(
+        new Request("http://127.0.0.1:3010/api/web/session")
+      );
+      const webSessionPayload = (await webSessionResponse.json()) as {
+        auth: { mode: string };
+        account: { accountId: string };
+      };
+      assert.equal(webSessionResponse.status, 200);
+      assert.equal(webSessionPayload.auth.mode, "local");
+      assert.match(webSessionPayload.account.accountId, /^local:\/\/youtube-analyzer-web:/);
+    }
+  );
+
+  await withEnv(
+    {
+      ALLOW_UNAUTHENTICATED_HOSTED_DEV: undefined,
       OAUTH_ENABLED: "true",
       OAUTH_ISSUER: "https://issuer.example.com/",
       OAUTH_AUDIENCE: "https://youtube-analyzer.onrender.com/api/mcp",

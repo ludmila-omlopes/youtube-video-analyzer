@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 
+import {
+  getHostedAccessPolicy,
+  InMemoryApiKeyStore,
+} from "../auth-billing/index.js";
 import type { EnabledOAuthConfig, OAuthConfig } from "../lib/auth/config.js";
 import type { AuthPrincipal } from "../lib/auth/principal.js";
 import { getOAuthProtectedResourceMetadataUrl } from "../lib/auth/protected-resource-metadata.js";
@@ -43,6 +47,10 @@ const principal: AuthPrincipal = {
 
 export async function run(): Promise<void> {
   const request = new Request("https://youtube-analyzer.onrender.com/api/mcp?foo=bar");
+  const protectedPolicy = getHostedAccessPolicy({
+    oauthConfig: enabledConfig,
+    allowUnauthenticatedHostedDev: false,
+  });
 
   assert.equal(
     getOAuthProtectedResourceMetadataUrl(request),
@@ -51,14 +59,59 @@ export async function run(): Promise<void> {
 
   const disabledAuth = await authenticateMcpRequest(request, {
     config: disabledConfig,
+    policy: getHostedAccessPolicy({
+      oauthConfig: disabledConfig,
+      allowUnauthenticatedHostedDev: true,
+    }),
   });
   assert.equal(disabledAuth.ok, true);
   if (disabledAuth.ok) {
     assert.equal(disabledAuth.principal, null);
   }
 
+  const protectedMisconfigured = await authenticateMcpRequest(request, {
+    config: disabledConfig,
+    policy: getHostedAccessPolicy({
+      oauthConfig: disabledConfig,
+      allowUnauthenticatedHostedDev: false,
+    }),
+  });
+  assert.equal(protectedMisconfigured.ok, false);
+  if (!protectedMisconfigured.ok) {
+    const protectedPayload = (await protectedMisconfigured.response.json()) as {
+      error: string;
+      error_description: string;
+    };
+    assert.equal(protectedMisconfigured.response.status, 503);
+    assert.equal(protectedPayload.error, "server_configuration_error");
+    assert.match(protectedPayload.error_description, /Hosted HTTP auth is protected by default/);
+  }
+
+  const apiKeyStore = new InMemoryApiKeyStore();
+  const createdApiKey = await apiKeyStore.createApiKey(principal, "MCP key");
+  const apiKeyAuthenticated = await authenticateMcpRequest(
+    new Request("https://youtube-analyzer.onrender.com/api/mcp", {
+      headers: { authorization: `ApiKey ${createdApiKey.plaintextKey}` },
+    }),
+    {
+      config: enabledConfig,
+      policy: protectedPolicy,
+      apiKeyStore,
+    }
+  );
+  assert.equal(apiKeyAuthenticated.ok, true);
+  if (apiKeyAuthenticated.ok) {
+    assert.equal(apiKeyAuthenticated.principal?.subject, principal.subject);
+    assert.equal(apiKeyAuthenticated.principal?.rawClaims.authMethod, "api_key");
+    assert.deepEqual(apiKeyAuthenticated.principal?.audience, [
+      "youtube-analyzer-web",
+      "youtube-analyzer-mcp",
+    ]);
+  }
+
   const missingToken = await authenticateMcpRequest(request, {
     config: enabledConfig,
+    policy: protectedPolicy,
   });
   assert.equal(missingToken.ok, false);
   if (!missingToken.ok) {
@@ -83,6 +136,7 @@ export async function run(): Promise<void> {
     }),
     {
       config: enabledConfig,
+      policy: protectedPolicy,
       validateBearerToken: async () => {
         throw new AccessTokenValidationError(
           `Access token is missing required scope "${enabledConfig.requiredScope}".`,
@@ -103,6 +157,7 @@ export async function run(): Promise<void> {
     }),
     {
       config: enabledConfig,
+      policy: protectedPolicy,
       validateBearerToken: async (authorizationHeader, config) => {
         assert.equal(authorizationHeader, "Bearer token-3");
         assert.equal(config.audience, enabledConfig.audience);

@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 
-import { createPrincipalScopedService } from "../app/principal-scoped-service.js";
-import { InMemoryRemoteAccessStore } from "../app/remote-access-store.js";
-import type { AnalysisExecutionContext } from "../lib/analysis.js";
-import { getPrincipalKey, type AuthPrincipal } from "../lib/auth/principal.js";
+import {
+  createPrincipalScopedService,
+  getPrincipalKey,
+  InMemoryRemoteAccessStore,
+  InMemoryUsageEventStore,
+  type AuthPrincipal,
+} from "../auth-billing/index.js";
+import type { AnalysisExecutionContext } from "../youtube-core/index.js";
 import { DiagnosticError } from "../lib/errors.js";
 
 import { testLogger } from "./test-helpers.js";
@@ -39,6 +43,7 @@ export async function run(): Promise<void> {
 
   try {
     const store = new InMemoryRemoteAccessStore();
+    const usageEvents = new InMemoryUsageEventStore();
     await store.upsertAccount(principal);
 
     const inner = {
@@ -81,15 +86,30 @@ export async function run(): Promise<void> {
       },
     };
 
-    const wrapped = createPrincipalScopedService(inner, principal, store);
+    const wrapped = createPrincipalScopedService(inner, principal, store, usageEvents);
 
     const accountId = getPrincipalKey(principal);
 
     await wrapped.analyzeShort({ youtubeUrl: "https://www.youtube.com/watch?v=test" }, shortContext());
     assert.equal((await store.getAccount(accountId))?.creditBalance, 1);
+    assert.deepEqual(
+      (await usageEvents.listForAccount(accountId)).map((event) => event.kind),
+      ["credits.finalized", "analysis.short.completed", "credits.reserved"]
+    );
 
     await wrapped.analyzeAudio({ youtubeUrl: "https://www.youtube.com/watch?v=test" }, audioContext());
     assert.equal((await store.getAccount(accountId))?.creditBalance, 0);
+    assert.deepEqual(
+      (await usageEvents.listForAccount(accountId)).map((event) => event.kind),
+      [
+        "credits.finalized",
+        "analysis.audio.completed",
+        "credits.reserved",
+        "credits.finalized",
+        "analysis.short.completed",
+        "credits.reserved",
+      ]
+    );
 
     await assert.rejects(
       () => wrapped.analyzeShort({ youtubeUrl: "https://www.youtube.com/watch?v=test" }, shortContext()),
@@ -98,6 +118,42 @@ export async function run(): Promise<void> {
         assert.equal(error.code, "INSUFFICIENT_CREDITS");
         return true;
       }
+    );
+
+    const failingStore = new InMemoryRemoteAccessStore();
+    const failingUsageEvents = new InMemoryUsageEventStore();
+    await failingStore.upsertAccount(principal);
+    const failingWrapped = createPrincipalScopedService(
+      {
+        async analyzeShort() {
+          throw new Error("provider exploded");
+        },
+        async analyzeAudio() {
+          throw new Error("not used");
+        },
+        async analyzeLong() {
+          throw new Error("not used");
+        },
+        async continueLong() {
+          throw new Error("not used");
+        },
+        async getYouTubeMetadata() {
+          throw new Error("not used");
+        },
+      },
+      principal,
+      failingStore,
+      failingUsageEvents
+    );
+
+    await assert.rejects(
+      () => failingWrapped.analyzeShort({ youtubeUrl: "https://www.youtube.com/watch?v=test" }, shortContext()),
+      /provider exploded/
+    );
+    assert.equal((await failingStore.getAccount(accountId))?.creditBalance, 2);
+    assert.deepEqual(
+      (await failingUsageEvents.listForAccount(accountId)).map((event) => event.kind),
+      ["credits.released", "credits.reserved"]
     );
   } finally {
     if (prevCredits === undefined) {

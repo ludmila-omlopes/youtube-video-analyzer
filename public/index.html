@@ -3,9 +3,622 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>YouTube Analyzer MCP</title>
+    <title>YouTube Analyzer | YouTube Intelligence Platform</title>
+    <meta
+      name="description"
+      content="A YouTube intelligence platform for structured video analysis, remote MCP access, async long-form jobs, and creator workflows."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #090b10;
+        --panel: rgba(18, 21, 28, 0.82);
+        --line: rgba(255, 255, 255, 0.12);
+        --text: #f6f1e8;
+        --muted: rgba(246, 241, 232, 0.72);
+        --accent: #ff8f3f;
+        --gold: #f7cb8c;
+        --max: 1160px;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top, rgba(255, 143, 63, 0.18), transparent 30%),
+          radial-gradient(circle at 82% 14%, rgba(247, 203, 140, 0.12), transparent 20%),
+          linear-gradient(180deg, #13151c 0%, #090b10 34%, #090b10 100%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px),
+          linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
+        background-size: 88px 88px;
+        mask-image: linear-gradient(180deg, rgba(0,0,0,0.55), transparent 92%);
+      }
+
+      a { color: inherit; text-decoration: none; }
+      button { font: inherit; }
+      .wrap { width: min(calc(100% - 36px), var(--max)); margin: 0 auto; }
+      .header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(18px);
+        background: rgba(9, 11, 16, 0.7);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+
+      .header .wrap {
+        min-height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .mark {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--gold), var(--accent));
+        color: #120d09;
+        font-weight: 700;
+        box-shadow: 0 0 36px rgba(255, 143, 63, 0.45);
+      }
+
+      .nav { display: flex; gap: 22px; color: var(--muted); font-size: 0.92rem; }
+      .nav a:hover, .nav a:focus-visible { color: var(--text); }
+
+      .hero {
+        padding: 56px 0 42px;
+      }
+
+      .hero .wrap {
+        min-height: calc(100svh - 128px);
+        display: grid;
+        grid-template-columns: minmax(0, 1.06fr) minmax(320px, 0.94fr);
+        align-items: center;
+        gap: clamp(28px, 6vw, 72px);
+      }
+
+      .eyebrow, .label {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--gold);
+        font-size: 0.76rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow::before, .label::before {
+        content: "";
+        width: 44px;
+        height: 1px;
+        background: currentColor;
+        opacity: 0.7;
+      }
+
+      h1, h2 {
+        margin: 16px 0 0;
+        font-family: "Instrument Serif", Georgia, serif;
+        font-weight: 400;
+        letter-spacing: -0.04em;
+        line-height: 0.96;
+      }
+
+      h1 { max-width: 9.5ch; font-size: clamp(3.8rem, 9vw, 6.8rem); }
+      h1 span, h2 span { color: var(--gold); font-style: italic; }
+      h2 { font-size: clamp(2.6rem, 6vw, 4.1rem); }
+
+      .lede, .section-copy, .section-text, .rail p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.8;
+        font-size: 1rem;
+      }
+
+      .lede { max-width: 42rem; margin-top: 20px; font-size: clamp(1rem, 2vw, 1.16rem); }
+      .actions, .final-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 28px; }
+
+      .button, .ghost, .copy {
+        min-height: 48px;
+        padding: 0 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+      }
+
+      .button {
+        background: linear-gradient(135deg, var(--gold), var(--accent));
+        color: #120d09;
+        font-weight: 700;
+        box-shadow: 0 16px 34px rgba(255, 143, 63, 0.22);
+      }
+
+      .ghost, .copy { background: transparent; border-color: rgba(255,255,255,0.16); color: var(--text); }
+      .button:hover, .ghost:hover, .copy:hover, .button:focus-visible, .ghost:focus-visible, .copy:focus-visible { transform: translateY(-1px); }
+
+      .chips { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 12px; color: rgba(246,241,232,0.74); font-size: 0.9rem; }
+      .chips span { padding: 10px 14px; border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; background: rgba(255,255,255,0.03); }
+
+      .hero-panel, .final-band {
+        padding: clamp(24px, 4vw, 34px);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 30px;
+        background:
+          linear-gradient(180deg, rgba(20,22,30,0.88), rgba(9,11,16,0.94)),
+          linear-gradient(135deg, rgba(255,143,63,0.12), transparent);
+        box-shadow: 0 28px 70px rgba(0,0,0,0.34);
+      }
+
+      .panel-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        color: rgba(246,241,232,0.74);
+        font-size: 0.8rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .panel-title {
+        margin: 18px 0 0;
+        font-size: clamp(1.7rem, 4vw, 2.3rem);
+        line-height: 1.08;
+      }
+
+      .panel-title span {
+        color: var(--gold);
+        font-style: italic;
+      }
+
+      .endpoint, .terminal {
+        margin-top: 22px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--panel);
+      }
+
+      .endpoint-meta, .terminal-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .endpoint-meta { margin-bottom: 10px; color: rgba(246,241,232,0.68); font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.94rem; }
+      .frames { margin-top: 22px; display: grid; gap: 12px; }
+      .frame {
+        position: relative;
+        min-height: 112px;
+        padding: 14px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px;
+        background:
+          linear-gradient(180deg, rgba(255,255,255,0.08), transparent 26%),
+          radial-gradient(circle at 72% 20%, rgba(255,143,63,0.2), transparent 40%),
+          rgba(255,255,255,0.02);
+      }
+
+      .frame-head { display: flex; justify-content: space-between; gap: 12px; font-size: 0.74rem; color: rgba(246,241,232,0.72); }
+      .frame-lines { position: absolute; left: 14px; right: 14px; bottom: 16px; display: grid; gap: 7px; }
+      .frame-lines span { height: 7px; border-radius: 999px; background: rgba(246,241,232,0.12); }
+      .frame-lines span:nth-child(2) { width: 76%; }
+      .frame-lines span:nth-child(3) { width: 58%; }
+
+      .section { padding: 88px 0; }
+      .section-head {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 0.85fr);
+        gap: 30px;
+        align-items: end;
+      }
+
+      .rows { margin-top: 36px; border-top: 1px solid rgba(255,255,255,0.12); }
+      .row {
+        display: grid;
+        grid-template-columns: 140px minmax(0, 1fr) minmax(220px, 0.78fr);
+        gap: 22px;
+        padding: 24px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+
+      .index { color: rgba(246,241,232,0.42); font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; }
+      .row h3 { margin: 0 0 8px; font-size: 1.42rem; }
+      .points { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: rgba(246,241,232,0.78); }
+      .points li { position: relative; padding-left: 16px; }
+      .points li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.68em;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+      }
+
+      .detail {
+        display: grid;
+        grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+        gap: clamp(24px, 4vw, 48px);
+        align-items: start;
+      }
+
+      .rail {
+        position: sticky;
+        top: 102px;
+        padding-right: 12px;
+      }
+
+      .stack { display: grid; }
+      .step {
+        display: grid;
+        grid-template-columns: 84px minmax(0, 1fr);
+        gap: 18px;
+        padding: 22px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+
+      .step h3 { margin: 0 0 8px; font-size: 1.38rem; }
+      .step p, .row p { margin: 0; color: var(--muted); line-height: 1.75; }
+      .highlight h3 { color: var(--gold); }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        font-size: 0.78rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .badge.primary { background: rgba(255,143,63,0.12); border-color: rgba(255,143,63,0.38); color: var(--gold); }
+      .badge.secondary { background: rgba(255,255,255,0.04); color: rgba(246,241,232,0.76); }
+      .terminal-bar { justify-content: flex-start; margin-bottom: 14px; gap: 8px; }
+      .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.18); }
+      .final { padding: 0 0 108px; }
+      .footer { padding: 0 0 34px; color: rgba(246,241,232,0.58); font-size: 0.92rem; }
+      .footer .wrap { display: flex; justify-content: space-between; gap: 16px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,0.08); }
+      [data-reveal] { opacity: 0; transform: translateY(22px); transition: opacity 700ms ease, transform 700ms ease; }
+      [data-reveal].is-visible { opacity: 1; transform: translateY(0); }
+
+      @media (max-width: 960px) {
+        .hero .wrap, .section-head, .detail { grid-template-columns: 1fr; }
+        .row { grid-template-columns: 1fr; gap: 12px; }
+        .rail { position: static; top: auto; padding-right: 0; }
+        .nav { display: none; }
+        .hero .wrap { min-height: auto; }
+      }
+
+      @media (max-width: 680px) {
+        .wrap { width: min(calc(100% - 26px), var(--max)); }
+        .hero { padding-top: 34px; }
+        .hero-panel, .final-band { padding: 22px; }
+        .footer .wrap { flex-direction: column; }
+      }
+    </style>
   </head>
   <body>
-    <p>YouTube Analyzer MCP is live. Connect your MCP client directly to <code>/api/mcp</code>.</p>
+    <header class="header">
+      <div class="wrap">
+        <a class="brand" href="#top" aria-label="YouTube Analyzer home">
+          <span class="mark">YA</span>
+          <span>YouTube Analyzer</span>
+        </a>
+        <nav class="nav" aria-label="Primary navigation">
+          <a href="#surfaces">Surfaces</a>
+          <a href="#workflow">Workflow</a>
+          <a href="#deploy">Deploy</a>
+          <a href="#start">Start</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="wrap">
+          <div data-reveal>
+            <div class="eyebrow">YouTube intelligence platform</div>
+            <h1>
+              Turn public videos into
+              <span>structured intelligence.</span>
+            </h1>
+            <p class="lede">
+              Analyze short clips, run async long-form jobs, normalize metadata, and expose the workflow through
+              local stdio, remote MCP, or hosted HTTP. MCP is one surface. The platform is the product.
+            </p>
+            <div class="actions">
+              <a class="button" href="/app">Open web app</a>
+              <a class="ghost" href="/api/mcp">Open MCP endpoint</a>
+              <a class="ghost" href="#deploy">See deployment shape</a>
+            </div>
+            <div class="chips" aria-label="Product highlights">
+              <span>Short-video analysis</span>
+              <span>Async long-video jobs</span>
+              <span>Remote-safe worker runtime</span>
+            </div>
+          </div>
+
+          <aside class="hero-panel" data-reveal>
+            <div class="panel-top">
+              <span>Hosted surface</span>
+              <span>Remote MCP + queue worker</span>
+            </div>
+            <p class="panel-title">
+              One core for <span>analysis, metadata, sessions,</span> and follow-up workflows.
+            </p>
+            <div class="endpoint">
+              <div class="endpoint-meta">
+                <span>Live endpoint</span>
+                <button class="copy" type="button" data-copy-target="mcp-endpoint">Copy URL</button>
+              </div>
+              <code id="mcp-endpoint" data-mcp-url>/api/mcp</code>
+            </div>
+            <div class="frames" aria-hidden="true">
+              <div class="frame">
+                <div class="frame-head"><span>Clip read</span><span>00:14-00:32</span></div>
+                <div class="frame-lines"><span></span><span></span><span></span></div>
+              </div>
+              <div class="frame">
+                <div class="frame-head"><span>Chunk synth</span><span>08:00</span></div>
+                <div class="frame-lines"><span></span><span></span><span></span></div>
+              </div>
+              <div class="frame">
+                <div class="frame-head"><span>Follow-up</span><span>session</span></div>
+                <div class="frame-lines"><span></span><span></span><span></span></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section" id="surfaces">
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <div>
+              <div class="label">Product surfaces</div>
+              <h2>The same analysis engine, exposed <span>three ways.</span></h2>
+            </div>
+            <p class="section-copy">
+              The repo already behaves more like a platform than a single MCP package. The right move is to keep
+              MCP, but stop letting it define the whole product story.
+            </p>
+          </div>
+
+          <div class="rows">
+            <article class="row" data-reveal>
+              <div class="index">01</div>
+              <div>
+                <h3>Local MCP for agent-native workflows</h3>
+                <p>Registry-ready stdio for desktop clients, deep follow-up sessions, and the blocking tools that only make sense close to local compute.</p>
+              </div>
+              <ul class="points">
+                <li>Desktop and registry-friendly entrypoint</li>
+                <li>Uploaded-file long-video path</li>
+                <li>Follow-up analysis by session ID</li>
+              </ul>
+            </article>
+
+            <article class="row" data-reveal>
+              <div class="index">02</div>
+              <div>
+                <h3>Remote MCP for hosted clients</h3>
+                <p>Streamable HTTP for agents that need a public endpoint, bearer auth, and a remote-safe way to kick off long-running analysis jobs.</p>
+              </div>
+              <ul class="points">
+                <li>Public endpoint at <code>/api/mcp</code></li>
+                <li>OAuth-protected resource metadata when enabled</li>
+                <li>Queue-backed long-video polling flow</li>
+              </ul>
+            </article>
+
+            <article class="row" data-reveal>
+              <div class="index">03</div>
+              <div>
+                <h3>Platform core for future creator products</h3>
+                <p>Metadata normalization, chunk planning, Gemini orchestration, credits, jobs, and account boundaries already point toward a broader YouTube workflow platform.</p>
+              </div>
+              <ul class="points">
+                <li>Reusable analysis service</li>
+                <li>Worker-friendly runtime shape</li>
+                <li>Natural path to web app, API, and monetization</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="workflow">
+        <div class="wrap detail">
+          <div class="rail" data-reveal>
+            <div class="label">Workflow depth</div>
+            <h2>Built for more than <span>a single prompt.</span></h2>
+            <p>
+              The core already handles URL normalization, strategy selection, chunk planning, async jobs,
+              structured JSON validation, and session-aware follow-up. That is platform behavior, not a thin MCP wrapper.
+            </p>
+            <div class="terminal">
+              <div class="terminal-bar" aria-hidden="true">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </div>
+              <code>npx -y @ludylops/youtube-video-analyzer-mcp</code>
+            </div>
+          </div>
+
+          <div class="stack">
+            <article class="step" data-reveal>
+              <div class="index">01</div>
+              <div>
+                <h3>Normalize and inspect</h3>
+                <p>Support public YouTube watch, live, shorts, embed, and short-link formats before the analysis pipeline begins. Metadata remains a first-class product surface.</p>
+              </div>
+            </article>
+            <article class="step" data-reveal>
+              <div class="index">02</div>
+              <div>
+                <h3>Choose the right strategy</h3>
+                <p>Short clips can run directly. Long-form video can move through uploaded-file analysis, URL chunks, or a remote-safe async queue depending on runtime constraints.</p>
+              </div>
+            </article>
+            <article class="step" data-reveal>
+              <div class="index">03</div>
+              <div>
+                <h3>Validate the output locally</h3>
+                <p>Structured JSON is validated in the app layer instead of trusting the model blindly, which makes the core reliable enough to power more than one interface.</p>
+              </div>
+            </article>
+            <article class="step" data-reveal>
+              <div class="index">04</div>
+              <div>
+                <h3>Continue the conversation</h3>
+                <p>Follow-up analysis, job polling, and account-scoped behavior make the runtime feel like a system with state, not a disposable one-shot utility.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="deploy">
+        <div class="wrap">
+          <div class="section-head" data-reveal>
+            <div>
+              <div class="label">Deploy shape</div>
+              <h2>Render is the production path. <span>Vercel is optional.</span></h2>
+            </div>
+            <p class="section-copy">
+              The current runtime already wants a hosted MCP endpoint, a background worker, Redis, and an admin surface. That architecture maps cleanly to Render and only partially to Vercel.
+            </p>
+          </div>
+
+          <div class="rows">
+            <article class="row highlight" data-reveal>
+              <div class="index">Primary</div>
+              <div>
+                <h3>Render <span class="badge primary">Recommended</span></h3>
+                <p>Canonical production setup for this repo because it matches the whole operating shape: web service, worker, Redis-backed BullMQ, and an admin dashboard.</p>
+              </div>
+              <ul class="points">
+                <li>Runs <code>npm run start:http</code> for the hosted endpoint</li>
+                <li>Runs <code>npm run start:worker</code> off the request path</li>
+                <li>Uses Render Key Value for BullMQ state and remote jobs</li>
+              </ul>
+            </article>
+
+            <article class="row" data-reveal>
+              <div class="index">Optional</div>
+              <div>
+                <h3>Vercel <span class="badge secondary">Thin adapter</span></h3>
+                <p>Keep only if you want a stateless MCP HTTP adapter or preview surface. It is not the canonical deployment target for the full platform runtime.</p>
+              </div>
+              <ul class="points">
+                <li><code>api/mcp.ts</code> remains a small compatibility layer</li>
+                <li><code>vercel.json</code> is optional, not production-critical for Render</li>
+                <li>Do not let the Vercel path drive product positioning</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="final" id="start">
+        <div class="wrap final-band" data-reveal>
+          <div class="label">Start here</div>
+          <h2>Use the MCP now, then keep building the platform around it.</h2>
+          <p class="section-text">
+            Keep the registry-friendly package. Keep the hosted endpoint. But let the public narrative graduate from an MCP server into a YouTube workflow platform.
+          </p>
+          <div class="terminal">
+            <div class="terminal-bar" aria-hidden="true">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
+            </div>
+            <code id="install-command">npx -y @ludylops/youtube-video-analyzer-mcp</code>
+          </div>
+          <div class="final-actions">
+            <a class="button" href="/app">Open product shell</a>
+            <button class="button" type="button" data-copy-target="install-command">Copy install command</button>
+            <a class="ghost" href="/api/mcp">Inspect MCP route</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap">
+        <span>YouTube Analyzer is evolving from a single MCP package into a broader YouTube intelligence platform.</span>
+        <span>Hosted endpoint: <strong data-mcp-url>/api/mcp</strong></span>
+      </div>
+    </footer>
+
+    <script>
+      const endpoint = new URL("/api/mcp", window.location.origin).toString();
+      for (const element of document.querySelectorAll("[data-mcp-url]")) {
+        element.textContent = endpoint;
+      }
+      for (const button of document.querySelectorAll("[data-copy-target]")) {
+        button.addEventListener("click", async () => {
+          const targetId = button.getAttribute("data-copy-target");
+          const target = targetId ? document.getElementById(targetId) : null;
+          if (!target) return;
+          try {
+            await navigator.clipboard.writeText(target.textContent || "");
+            const previous = button.textContent;
+            button.textContent = "Copied";
+            window.setTimeout(() => { button.textContent = previous; }, 1400);
+          } catch {
+            button.textContent = "Copy failed";
+          }
+        });
+      }
+      const observer = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) entry.target.classList.add("is-visible");
+        }
+      }, { threshold: 0.2, rootMargin: "0px 0px -12% 0px" });
+      for (const element of document.querySelectorAll("[data-reveal]")) {
+        observer.observe(element);
+      }
+    </script>
   </body>
 </html>

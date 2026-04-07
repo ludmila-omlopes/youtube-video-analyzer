@@ -7,3 +7,4 @@ dist
 .mcpregistry_*_token
 
 .vercel
+.codex-hosted*.log

@@ -1,42 +1,12 @@
-import "dotenv/config";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-import { createBullMqLongAnalysisWorker } from "./app/bullmq-long-analysis-jobs.js";
+import { main } from "./worker-main.js";
 
-async function main(): Promise<void> {
-  const worker = createBullMqLongAnalysisWorker();
-
-  worker.on("completed", (job) => {
-    console.log(`Long-analysis job completed: ${job.id}`);
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    console.error(message);
+    process.exit(1);
   });
-
-  worker.on("failed", (job, error) => {
-    console.error(`Long-analysis job failed: ${job?.id ?? "unknown"}`);
-    console.error(error instanceof Error ? error.stack || error.message : String(error));
-  });
-
-  worker.on("error", (error) => {
-    console.error(error instanceof Error ? error.stack || error.message : String(error));
-  });
-
-  const shutdown = async (signal: NodeJS.Signals) => {
-    console.log(`Received ${signal}, closing long-analysis worker`);
-    await worker.close();
-    process.exit();
-  };
-
-  process.once("SIGINT", () => {
-    void shutdown("SIGINT");
-  });
-  process.once("SIGTERM", () => {
-    void shutdown("SIGTERM");
-  });
-
-  await worker.waitUntilReady();
-  console.log("Long-analysis worker is ready");
 }
-
-main().catch((error) => {
-  const message = error instanceof Error ? error.stack || error.message : String(error);
-  console.error(message);
-  process.exit(1);
-});

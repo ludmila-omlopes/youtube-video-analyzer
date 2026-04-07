@@ -1,16 +1,21 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
-import { createBullMqLongAnalysisJobsFromEnv } from "../app/bullmq-long-analysis-jobs.js";
-import { createCloudSessionStore } from "../app/cloud-session-store.js";
-import { createPublicRemoteVideoAnalysisService } from "../app/create-public-remote-service.js";
-import type { LongAnalysisJobs } from "../app/long-analysis-jobs.js";
-import { createPrincipalScopedLongAnalysisJobs } from "../app/principal-scoped-long-analysis-jobs.js";
-import { createPrincipalScopedSessionStore } from "../app/principal-scoped-session-store.js";
-import { createPrincipalScopedService } from "../app/principal-scoped-service.js";
-import { createRemoteAccessStoreFromEnv, type RemoteAccessStore } from "../app/remote-access-store.js";
-import type { AnalysisSessionStore } from "../app/session-store.js";
-import type { VideoAnalysisServiceLike } from "../app/video-analysis-service.js";
-import type { AuthPrincipal } from "../lib/auth/principal.js";
+import {
+  createPrincipalScopedLongAnalysisJobs,
+  createPrincipalScopedService,
+  createPrincipalScopedSessionStore,
+  createRemoteAccessStoreFromEnv,
+  type AuthPrincipal,
+  type RemoteAccessStore,
+} from "../auth-billing/index.js";
+import {
+  createBullMqLongAnalysisJobsFromEnv,
+  createCloudSessionStore,
+  createPublicRemoteVideoAnalysisService,
+  type AnalysisSessionStore,
+  type LongAnalysisJobs,
+} from "../platform-runtime/index.js";
+import type { VideoAnalysisServiceLike } from "../youtube-core/index.js";
 import { createServer } from "../server.js";
 
 export type McpHttpHandlerOptions = {

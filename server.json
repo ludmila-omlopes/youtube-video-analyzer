@@ -6,12 +6,12 @@
     "url": "https://github.com/ludmila-omlopes/youtube-video-analyzer-mcp",
     "source": "github"
   },
-  "version": "0.2.3",
+  "version": "0.3.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@ludylops/youtube-video-analyzer-mcp",
-      "version": "0.2.3",
+      "version": "0.3.0",
       "transport": {
         "type": "stdio"
       },

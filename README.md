@@ -1,6 +1,6 @@
 # YouTube Video Analyzer MCP
 
-An MCP server for analyzing public YouTube videos with Google Gemini. The package keeps its local `stdio` npm entrypoint for registry and desktop-client usage, and also includes a public Streamable HTTP adapter for Vercel-style deployment.
+An MCP server for analyzing public YouTube videos with Google Gemini. The package keeps its local `stdio` npm entrypoint for registry and desktop-client usage, and also includes a Streamable HTTP surface for hosted deployments. Local `stdio` usage is the free BYOK path; hosted HTTP is intended for authenticated deployments. In this repo, Render is the primary production path and Vercel stays as an optional thin adapter.
 
 ## Features
 
@@ -17,7 +17,7 @@ An MCP server for analyzing public YouTube videos with Google Gemini. The packag
 - Safe MCP error payloads with machine-readable `code`, `stage`, and strategy metadata
 - Optional custom JSON schema support for final outputs
 - Shared transport-neutral analysis service used by both `stdio` and HTTP adapters
-- Public remote MCP route at `api/mcp.ts`
+- Hosted remote MCP endpoint at `/api/mcp`
 
 
 
@@ -73,6 +73,8 @@ For the local hosted HTTP adapter:
 npm run dev:hosted
 ```
 
+`npm run dev:hosted` now starts in protected hosted mode by default. To open it locally without OAuth for manual development only, set `ALLOW_UNAUTHENTICATED_HOSTED_DEV=true` in your shell or local `.env`.
+
 For the built hosted HTTP adapter:
 
 ```bash
@@ -83,6 +85,7 @@ npm run start:http
 For the remote long-analysis worker:
 
 ```bash
+set REDIS_URL=redis://localhost:6379
 npm run build
 npm run start:worker
 ```
@@ -90,6 +93,7 @@ npm run start:worker
 For the BullMQ dashboard:
 
 ```bash
+set REDIS_URL=redis://localhost:6379
 set ADMIN_USERNAME=admin
 set ADMIN_PASSWORD=change-me
 npm run build
@@ -98,48 +102,96 @@ npm run start:admin
 
 ## Remote MCP over HTTP
 
-The repository includes a public remote MCP entrypoint for web-standard Streamable HTTP:
+The repository includes a hosted remote MCP entrypoint for web-standard Streamable HTTP:
 
-- `api/mcp.ts`: Vercel route
+- `api/mcp.ts`: optional Vercel adapter
 - `src/http/mcp.ts`: shared HTTP handler
+- `npm run start:http` / `render.yaml`: primary hosted runtime path
 
-The HTTP adapter is public and reuses the same MCP tool registration logic from `src/server.ts`.
+The HTTP adapter reuses the same MCP tool registration logic from `src/server.ts`.
 
-When OAuth is disabled, the remote MCP route is public. When enabled, the HTTP adapter acts as an OAuth 2.1-protected MCP resource server and expects bearer access tokens on `/api/mcp`.
+Render is the canonical deployment target in this repository because it matches the full runtime shape: hosted HTTP endpoint, background worker, Redis-backed jobs, and the admin dashboard. Keep the Vercel-specific files only if you still want a stateless adapter or preview surface.
+
+Hosted HTTP auth is protected by default. Production-style deployments should set `OAUTH_ENABLED=true` with the required `OAUTH_*` values. For local hosted development only, you can set `ALLOW_UNAUTHENTICATED_HOSTED_DEV=true` to bypass hosted auth intentionally.
 
 Remote deployment environment variables:
 
 - `GEMINI_API_KEY`
 - `YOUTUBE_API_KEY`
+- `ALLOW_UNAUTHENTICATED_HOSTED_DEV` (optional local-dev escape hatch only; default protected mode)
+- `HOSTED_RUNTIME_ROLE` (optional explicit hosted-role marker such as `web`, `worker`, or `admin`; cloud deployments default to Redis-required durability when this or common platform markers are present)
 - `REDIS_URL` or `REDIS_HOST` / `REDIS_PORT` for remote async long-video jobs
 - `SESSION_STORE_DRIVER` (optional: `memory` or `redis`) for remote follow-up session persistence
-- `OAUTH_ENABLED=true` to require bearer tokens for remote MCP access
+- `OAUTH_ENABLED=true` for protected hosted MCP and web access
 - `OAUTH_ISSUER`
 - `OAUTH_AUDIENCE`
 - `OAUTH_JWKS_URL`
 - `OAUTH_REQUIRED_SCOPE` (optional)
+- `OAUTH_WEB_CLIENT_ID` for hosted web sign-in in `/app`
+- `OAUTH_WEB_AUTHORIZATION_URL`
+- `OAUTH_WEB_TOKEN_URL`
+- `OAUTH_WEB_REDIRECT_PATH` (optional, default `/app`)
+- `OAUTH_WEB_SCOPES` (optional, defaults to `OAUTH_REQUIRED_SCOPE`)
+- `OAUTH_WEB_AUDIENCE` (optional)
+- `OAUTH_WEB_RESOURCE` (optional)
 - `REMOTE_ACCOUNT_INITIAL_CREDITS` (optional, default `100`) initial balance for new authenticated remote accounts
 
 Remote runtime behavior:
 
 - remote Gemini calls use the server-owned `GEMINI_API_KEY`
 - remote metadata calls use the server-owned `YOUTUBE_API_KEY`
-- remote MCP access is plug and play at `/api/mcp` when `OAUTH_ENABLED` is not set
-- when `OAUTH_ENABLED=true`, unauthenticated MCP requests return `401` / `403` with `WWW-Authenticate` and a protected-resource metadata URL for MCP clients
+- hosted MCP and web routes return a configuration error until you either configure OAuth or explicitly opt into `ALLOW_UNAUTHENTICATED_HOSTED_DEV=true` for local development
+- when OAuth is configured, hosted MCP accepts bearer access tokens and hosted API keys
+- unauthenticated MCP requests return `401` / `403` with `WWW-Authenticate` and a protected-resource metadata URL for MCP clients
 - the protected-resource metadata document is served at `/.well-known/oauth-protected-resource`
+- the web app shell lives at `/app` and exposes `/api/web/session`, `/api/web/runs`, `/api/web/monetization-scan`, and `/api/web/api-keys`
+- the hosted REST API lives under `/api/v1` and uses the same bearer-token / API-key auth model as hosted MCP
+- cloud-style hosted runtimes default to `CLOUD_DURABILITY_MODE=require_redis`, so remote accounts, API keys, usage events, workflow runs, and session persistence fail fast if Redis is missing
+- hosted runtime entrypoints validate launch configuration on boot, so missing Redis, OAuth, or admin secrets stop the service before it starts handling traffic
+- browser OAuth sign-in in `/app` uses Authorization Code + PKCE when the `OAUTH_WEB_*` variables are configured
+- authenticated users can create and revoke API keys for hosted programmatic access, including remote MCP clients and hosted REST API callers
 - remote HTTP exposes `start_long_youtube_video_analysis` and `get_long_youtube_video_analysis_job`
 - remote long-video analysis runs in a BullMQ worker backed by Redis instead of blocking the MCP request
 - remote follow-up session state uses Redis automatically when Redis is configured, or `SESSION_STORE_DRIVER=redis` can force it
 - remote workers force `strategy: "url_chunks"` to avoid download/upload work in the HTTP runtime
 - blocking `analyze_long_youtube_video` and `continue_long_video_analysis` are reserved for local `stdio` / MCP-task clients
 - local `stdio` usage still uses environment variables and local config only
-- when a bearer token is present, `analyze_youtube_video` and `analyze_youtube_video_audio` debit credits after a successful run; other remote tools are unchanged in this release
+- hosted short/audio runs reserve credits before execution and settle on success/failure, and hosted long jobs do the same across queue execution
 
-Important limitation for public HTTP deployments:
+Important limitation for hosted HTTP deployments:
 
 - remote long-video analysis returns a `jobId`, not a `sessionId`
 - clients must poll `get_long_youtube_video_analysis_job` until the job reaches `completed` or `failed`
 - local uploaded-file follow-up sessions still use `sessionId`
+
+## Hosted REST API
+
+The hosted HTTP service now exposes a stable REST surface alongside MCP and the web app.
+
+Authentication:
+
+- use the same bearer tokens as hosted MCP, or the same hosted API keys created from `/app`
+- pass API keys as `Authorization: ApiKey <key>` or `x-api-key: <key>`
+
+Current endpoints:
+
+- `POST /api/v1/metadata`
+- `POST /api/v1/analyze/short`
+- `POST /api/v1/analyze/audio`
+- `POST /api/v1/long-jobs`
+- `GET /api/v1/long-jobs/:jobId`
+
+Response shape:
+
+- success: `{ "requestId": "...", "result": { ... }, "account": { ... } }`
+- error: `{ "requestId": "...", "error": { ... }, "account": { ... } }`
+
+Notes:
+
+- metadata reads are authenticated but do not debit credits
+- short/audio calls debit credits through the same hosted ledger used by remote MCP and web workflows
+- long-job creation returns `202 Accepted` and reserves credits immediately
+- long-job status returns `404` when the job is not visible to the authenticated account
 
 ## Deploying on Render
 
@@ -157,16 +209,18 @@ What it configures:
 - worker start command: `npm run start:worker`
 - dashboard start command: `npm run start:admin`
 - health check path: `/healthz`
-- required secrets: `GEMINI_API_KEY`, `YOUTUBE_API_KEY`
+- required web secrets: `GEMINI_API_KEY`, `YOUTUBE_API_KEY`, `OAUTH_ISSUER`, `OAUTH_AUDIENCE`, `OAUTH_JWKS_URL`, `OAUTH_WEB_CLIENT_ID`, `OAUTH_WEB_AUTHORIZATION_URL`, `OAUTH_WEB_TOKEN_URL`
+- shared `CLOUD_DURABILITY_MODE=require_redis` across the web, worker, and admin services
 - shared `REDIS_HOST` / `REDIS_PORT` on the web service and worker from the Render Key Value instance
 - shared `REDIS_URL` on the dashboard service from the Render Key Value instance
+- `HOSTED_RUNTIME_ROLE=web|worker|admin` across the three runtime services so hosted durability defaults stay strict even without an explicit `CLOUD_DURABILITY_MODE`
 - dashboard secrets: `ADMIN_USERNAME`, `ADMIN_PASSWORD`
 - Key Value `maxmemoryPolicy: noeviction` for queue safety
 
 Render-specific runtime behavior in this repo:
 
 - the hosted HTTP server binds to `0.0.0.0:$PORT` when Render injects `PORT`
-- the root route reports the public MCP URL using Render's forwarded host/protocol headers
+- the root route serves the platform landing page while keeping `/api/mcp` as the hosted endpoint
 - the web service responds quickly for remote long analysis by enqueueing Redis jobs
 - the worker processes queued long-video jobs off the request path
 - the dashboard exposes BullMQ queue state at `/admin/queues` with HTTP basic auth
@@ -178,6 +232,17 @@ Recommended plan choice:
 - use the same region for the web service, worker, and Key Value instance
 - on existing Blueprint-managed services, add `ADMIN_USERNAME` and `ADMIN_PASSWORD` manually in Render because `sync: false` secrets are only prompted during initial Blueprint creation
 
+## Hosted Launch Checklist
+
+For the product-release path, use [HOSTED_LAUNCH_CHECKLIST.md](./HOSTED_LAUNCH_CHECKLIST.md).
+
+This is the recommended sequence:
+
+- deploy the Render Blueprint
+- configure OAuth and Redis-backed durability
+- complete the web, API, MCP, worker, and admin smoke checks
+- launch the hosted beta without requiring an npm publish
+
 ## BullMQ Dashboard
 
 The repository includes a separate BullMQ dashboard service built with `bull-board`.
@@ -188,10 +253,14 @@ Behavior:
 - auth: HTTP basic auth using `ADMIN_USERNAME` and `ADMIN_PASSWORD`
 - mode: read-only by default through `BULL_BOARD_READ_ONLY=true`
 - queues: defaults to `LONG_ANALYSIS_JOB_QUEUE_NAME`, or use `BULL_BOARD_QUEUE_NAMES` with a comma-separated list
+- account admin API:
+  - `GET /admin/api/account?accountId=...` or `?issuer=...&subject=...`
+  - `POST /admin/api/account/plan` with JSON `{ "accountId": "...", "plan": "builder" }`
+  - `POST /admin/api/account/grant-credits` with JSON `{ "accountId": "...", "credits": 100 }`
 
 This dashboard is separate from the MCP endpoint on purpose:
 
-- it avoids mixing admin UI traffic into the public MCP route
+- it avoids mixing admin UI traffic into the hosted MCP route
 - it can connect directly to the same Redis instance as the worker
 - it shows BullMQ jobs, which are not the same thing as Render's own Jobs UI
 
@@ -251,7 +320,7 @@ Replace the example path below with the absolute path to your own built `dist/in
 }
 ```
 
-### Public remote HTTP
+### Hosted remote HTTP
 
 ```json
 {
@@ -406,4 +475,7 @@ Behavior:
 - The BullMQ dashboard requires `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and Redis connection settings.
 - Cache reuse is an optimization for repeated analysis on the same uploaded asset; it does not increase the effective model context window.
 - Local `stdio` sessions use an in-memory store by default.
-- Public HTTP deployments expose `/api/mcp` without additional authentication and use Redis-backed BullMQ jobs for remote long analysis when Redis connection settings are configured.
+- Public HTTP deployments keep `/api/mcp` protected by hosted auth, and use Redis-backed BullMQ jobs for remote long analysis when Redis connection settings are configured.
+
+
+

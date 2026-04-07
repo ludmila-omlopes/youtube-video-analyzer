@@ -2,10 +2,19 @@ import { InMemoryTaskMessageQueue } from "@modelcontextprotocol/sdk/experimental
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, GetTaskResult, Task } from "@modelcontextprotocol/sdk/types.js";
 
-import type { LongAnalysisJobs } from "./app/long-analysis-jobs.js";
-import { createVideoAnalysisService } from "./app/create-service.js";
-import type { VideoAnalysisServiceLike } from "./app/video-analysis-service.js";
-import type { AnalysisExecutionContext } from "./lib/analysis.js";
+import { createVideoAnalysisService, type LongAnalysisJobs, ManagedTaskStore } from "./platform-runtime/index.js";
+import type {
+  AnalysisExecutionContext,
+  FollowUpToolInput,
+  FollowUpToolOutput,
+  GetLongAnalysisJobToolInput,
+  GetLongAnalysisJobToolOutput,
+  LongToolInput,
+  LongToolOutput,
+  ProgressReporter,
+  StartLongAnalysisJobToolOutput,
+  VideoAnalysisServiceLike,
+} from "./youtube-core/index.js";
 import { DEFAULT_TASK_TTL_MS, SERVER_INFO } from "./lib/constants.js";
 import { asDiagnosticError } from "./lib/errors.js";
 import { createRequestLogger, type Logger } from "./lib/logger.js";
@@ -24,16 +33,7 @@ import {
   shortToolInputSchema,
   shortToolOutputSchema,
   startLongAnalysisJobToolOutputSchema,
-  type FollowUpToolInput,
-  type FollowUpToolOutput,
-  type GetLongAnalysisJobToolInput,
-  type GetLongAnalysisJobToolOutput,
-  type LongToolInput,
-  type LongToolOutput,
-  type StartLongAnalysisJobToolOutput,
-} from "./lib/schemas.js";
-import { ManagedTaskStore } from "./lib/task-store.js";
-import type { ProgressReporter } from "./lib/types.js";
+} from "./youtube-core/index.js";
 
 type StructuredSuccess = Record<string, unknown>;
 

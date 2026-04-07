@@ -1,17 +1,12 @@
-﻿import "dotenv/config";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { main } from "./mcp-server-main.js";
 
-import { createServer } from "./server.js";
-
-async function main(): Promise<void> {
-  const server = createServer();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    console.error(message);
+    process.exit(1);
+  });
 }
-
-main().catch((error) => {
-  const message = error instanceof Error ? error.stack || error.message : String(error);
-  console.error(message);
-  process.exit(1);
-});

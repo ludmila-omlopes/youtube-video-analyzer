@@ -13,6 +13,10 @@ services:
     startCommand: npm run start:http
     healthCheckPath: /healthz
     envVars:
+      - key: HOSTED_RUNTIME_ROLE
+        value: web
+      - key: CLOUD_DURABILITY_MODE
+        value: require_redis
       - key: REDIS_HOST
         fromService:
           type: keyvalue
@@ -27,6 +31,30 @@ services:
         sync: false
       - key: YOUTUBE_API_KEY
         sync: false
+      - key: OAUTH_ENABLED
+        value: "true"
+      - key: OAUTH_ISSUER
+        sync: false
+      - key: OAUTH_AUDIENCE
+        sync: false
+      - key: OAUTH_JWKS_URL
+        sync: false
+      - key: OAUTH_REQUIRED_SCOPE
+        value: mcp:access
+      - key: OAUTH_WEB_CLIENT_ID
+        sync: false
+      - key: OAUTH_WEB_AUTHORIZATION_URL
+        sync: false
+      - key: OAUTH_WEB_TOKEN_URL
+        sync: false
+      - key: OAUTH_WEB_REDIRECT_PATH
+        value: /app
+      - key: OAUTH_WEB_SCOPES
+        value: openid profile mcp:access
+      - key: OAUTH_WEB_AUDIENCE
+        sync: false
+      - key: OAUTH_WEB_RESOURCE
+        sync: false
 
   - type: worker
     name: youtube-analyzer-mcp-worker
@@ -35,6 +63,10 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm run start:worker
     envVars:
+      - key: HOSTED_RUNTIME_ROLE
+        value: worker
+      - key: CLOUD_DURABILITY_MODE
+        value: require_redis
       - key: REDIS_HOST
         fromService:
           type: keyvalue
@@ -58,6 +90,10 @@ services:
     startCommand: npm run start:admin
     healthCheckPath: /healthz
     envVars:
+      - key: HOSTED_RUNTIME_ROLE
+        value: admin
+      - key: CLOUD_DURABILITY_MODE
+        value: require_redis
       - key: REDIS_URL
         fromService:
           type: keyvalue

@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 
 import {
+  createCloudSessionStore,
   RedisAnalysisSessionStore,
   resolveCloudSessionStoreDriver,
-} from "../app/cloud-session-store.js";
-import type { AnalysisSession } from "../lib/types.js";
+} from "../platform-runtime/index.js";
+import type { AnalysisSession } from "../youtube-core/index.js";
 
 class FakeKeyValueClient {
   private readonly values = new Map<string, string>();
@@ -47,6 +48,10 @@ export async function run(): Promise<void> {
   assert.throws(
     () => resolveCloudSessionStoreDriver({ SESSION_STORE_DRIVER: "sqlite" }),
     /Unsupported SESSION_STORE_DRIVER/
+  );
+  assert.throws(
+    () => createCloudSessionStore({ CLOUD_DURABILITY_MODE: "require_redis" }),
+    /requires Redis configuration for session_store/
   );
 
   const store = new RedisAnalysisSessionStore(new FakeKeyValueClient() as never);

@@ -1,6 +1,9 @@
-import { getOAuthConfig } from "../lib/auth/config.js";
+import { getHostedAccessPolicy } from "../auth-billing/index.js";
 
-import { createProtectedResourceMetadataResponse } from "./oauth-responses.js";
+import {
+  createHostedAuthConfigurationErrorMcpResponse,
+  createProtectedResourceMetadataResponse,
+} from "./oauth-responses.js";
 
 function notFound(): Response {
   return new Response("Not Found", {
@@ -10,10 +13,19 @@ function notFound(): Response {
 }
 
 export async function handleProtectedResourceMetadataRequest(_request: Request): Promise<Response> {
-  const config = getOAuthConfig();
-  if (!config.enabled) {
+  const policy = getHostedAccessPolicy();
+
+  if (policy.allowUnauthenticatedHostedAccess) {
     return notFound();
   }
 
-  return createProtectedResourceMetadataResponse(config);
+  if (!policy.hostedAuthConfigured || !policy.oauthConfig.enabled) {
+    return createHostedAuthConfigurationErrorMcpResponse(
+      _request,
+      policy.oauthConfig.resourceName,
+      policy.configurationError ?? "Hosted auth configuration is invalid."
+    );
+  }
+
+  return createProtectedResourceMetadataResponse(policy.oauthConfig);
 }
