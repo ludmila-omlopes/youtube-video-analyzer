@@ -415,6 +415,7 @@
       }
 
       function handleAuthRequirement(payload) {
+        sessionState = payload;
         dom.signinForm.classList.remove("is-hidden");
         dom.modeLabel.textContent = "Bearer token required";
         dom.oauthSigninButton.style.display = payload?.auth?.browserSignin?.enabled ? "inline-flex" : "none";

@@ -33,6 +33,7 @@ import { run as runUsageEventsTests } from "./usage-events.test.js";
 import { run as runVideoAnalysisServiceTests } from "./video-analysis-service.test.js";
 import { run as runWebAppTests } from "./web-app.test.js";
 import { run as runWebAuthTests } from "./web-auth.test.js";
+import { run as runWebShellTests } from "./web-shell.test.js";
 import { run as runWorkflowRunStoreTests } from "./workflow-run-store.test.js";
 import { run as runYouTubeMetadataTests } from "./youtube-metadata.test.js";
 import { run as runYouTubeTests } from "./youtube.test.js";
@@ -73,6 +74,7 @@ const suites = [
   ["video-analysis-service", runVideoAnalysisServiceTests],
   ["web-app", runWebAppTests],
   ["web-auth", runWebAuthTests],
+  ["web-shell", runWebShellTests],
   ["workflow-run-store", runWorkflowRunStoreTests],
   ["youtube-metadata", runYouTubeMetadataTests],
   ["youtube", runYouTubeTests],
@@ -90,4 +92,5 @@ main().catch((error) => {
   console.error(message);
   process.exit(1);
 });
+
 
