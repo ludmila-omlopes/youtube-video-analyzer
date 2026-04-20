@@ -26,10 +26,9 @@ import {
   type WorkflowRunRecord,
   type WorkflowRunStore,
 } from "../platform-runtime/index.js";
-import { asDiagnosticError } from "../lib/errors.js";
-import { createRequestLogger } from "../lib/logger.js";
+import { asDiagnosticError, createRequestLogger, sanitizeErrorMessage } from "@ludylops/video-analysis-core";
 import { runMonetizationScan, type MonetizationScanOutput } from "../workflow-packs/index.js";
-import type { VideoAnalysisServiceLike } from "../youtube-core/index.js";
+import type { VideoAnalysisServiceLike } from "@ludylops/video-analysis-core";
 
 import {
   authenticateWebRequest,
@@ -39,7 +38,7 @@ import {
 } from "./web-auth.js";
 
 const WEB_APP_PATH = fileURLToPath(new URL("../../public/app.html", import.meta.url));
-const WEB_APP_FALLBACK = `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>YouTube Analyzer App</title></head><body><p>YouTube Analyzer App is unavailable.</p></body></html>`;
+const WEB_APP_FALLBACK = `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>YouTube Video Analyzer App</title></head><body><p>YouTube Video Analyzer App is unavailable.</p></body></html>`;
 
 let webAppHtmlPromise: Promise<string> | undefined;
 
@@ -79,7 +78,7 @@ type WebSessionPayload = {
   };
   endpoints: {
     appUrl: string;
-    mcpUrl: string;
+    apiDocsUrl: string;
     protectedResourceMetadataUrl: string;
     apiKeys: "enabled" | "disabled";
   };
@@ -128,15 +127,15 @@ function getOriginUrl(request: Request): URL {
 
 function getAppUrl(request: Request): string {
   const url = getOriginUrl(request);
-  url.pathname = "/app";
+  url.pathname = "/dashboard";
   url.search = "";
   url.hash = "";
   return url.toString();
 }
 
-function getMcpUrl(request: Request): string {
+function getApiDocsUrl(request: Request): string {
   const url = getOriginUrl(request);
-  url.pathname = "/api/mcp";
+  url.pathname = "/docs/api";
   url.search = "";
   url.hash = "";
   return url.toString();
@@ -196,6 +195,20 @@ function createEntitlementErrorResponse(code: string, message: string, status = 
   );
 }
 
+function monetizationScanErrorHttpStatus(code: string): number {
+  switch (code) {
+    case "INVALID_YOUTUBE_URL":
+      return 400;
+    case "INSUFFICIENT_CREDITS":
+      return 402;
+    case "REMOTE_ACCOUNT_SUSPENDED":
+    case "REMOTE_ACCOUNT_NOT_FOUND":
+      return 403;
+    default:
+      return 500;
+  }
+}
+
 function assertApiKeysEnabled(accountPlan: RemoteAccountPlan): Response | null {
   if (getRemoteAccountEntitlements(accountPlan).apiKeysEnabled) {
     return null;
@@ -211,22 +224,22 @@ function buildOnboardingState(recentRuns: WorkflowRunRecord[]): WebSessionPayloa
   if (recentRuns.length > 0) {
     return {
       state: "ready",
-      nextAction: "Open a saved monetization scan or run a fresh one.",
+      nextAction: "Open a saved workflow run from history or analyze a new short video.",
       checklist: [
         "Account is active",
         "Workflow history is available",
-        "MCP endpoint is visible for premium connector access",
+        "Premium hosted workflows and API access are available",
       ],
     };
   }
 
   return {
     state: "first-run",
-    nextAction: "Run your first monetization scan to generate history, usage, and reusable output.",
+    nextAction: "Paste a public YouTube URL and run a short video analysis from the app.",
     checklist: [
       "Sign in or continue in local mode",
       "Paste a public YouTube URL",
-      "Run Monetization Scan",
+      "Run short video analysis",
     ],
   };
 }
@@ -339,7 +352,7 @@ function toSessionPayload(
     },
     endpoints: {
       appUrl: getAppUrl(request),
-      mcpUrl: getMcpUrl(request),
+      apiDocsUrl: getApiDocsUrl(request),
       protectedResourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(request),
       apiKeys: apiKeysAvailability(entitlements),
     },
@@ -368,35 +381,54 @@ export function createWebSessionHandler(options: WebAppHandlerOptions = {}) {
   const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
 
   return async function handleWebSessionRequest(request: Request): Promise<Response> {
-    const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
-      apiKeyStore,
-    });
-    if (!auth.ok) {
-      return auth.response;
+    try {
+      const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
+        apiKeyStore,
+      });
+      if (!auth.ok) {
+        return auth.response;
+      }
+
+      const account = await remoteAccessStore.upsertAccount(auth.principal);
+      const [recentUsageEvents, recentRuns, apiKeys] = await Promise.all([
+        usageEventStore.listForAccount(account.accountId),
+        workflowRunStore.listRunsForAccount(account.accountId, 8),
+        apiKeyStore.listApiKeys(account.accountId),
+      ]);
+      const visibleUsageEvents = filterUsageEventsForHistory(account.plan, recentUsageEvents).slice(0, 12);
+      const visibleRuns = filterWorkflowRunsForHistory(account.plan, recentRuns);
+
+      return createJsonResponse(
+        toSessionPayload(
+          request,
+          auth.authMode,
+          auth.principal,
+          account,
+          visibleUsageEvents,
+          visibleRuns,
+          apiKeys,
+          auth.config.resourceName,
+          auth.config.enabled ? auth.config.requiredScope : null
+        )
+      );
+    } catch (error) {
+      const diagnostic = asDiagnosticError(error, {
+        tool: "web_session",
+        code: "WEB_SESSION_FAILED",
+        stage: "unknown",
+        message: sanitizeErrorMessage(error) ?? "Failed to load web session.",
+      });
+      return createJsonResponse(
+        {
+          error: {
+            code: diagnostic.code,
+            message: diagnostic.message,
+            retryable: diagnostic.retryable,
+          },
+        },
+        500
+      );
     }
-
-    const account = await remoteAccessStore.upsertAccount(auth.principal);
-    const [recentUsageEvents, recentRuns, apiKeys] = await Promise.all([
-      usageEventStore.listForAccount(account.accountId),
-      workflowRunStore.listRunsForAccount(account.accountId, 8),
-      apiKeyStore.listApiKeys(account.accountId),
-    ]);
-    const visibleUsageEvents = filterUsageEventsForHistory(account.plan, recentUsageEvents).slice(0, 12);
-    const visibleRuns = filterWorkflowRunsForHistory(account.plan, recentRuns);
-
-    return createJsonResponse(
-      toSessionPayload(
-        request,
-        auth.authMode,
-        auth.principal,
-        account,
-        visibleUsageEvents,
-        visibleRuns,
-        apiKeys,
-        auth.config.resourceName,
-        auth.config.enabled ? auth.config.requiredScope : null
-      )
-    );
   };
 }
 
@@ -640,9 +672,10 @@ export function createMonetizationScanHandler(options: WebAppHandlerOptions = {}
             stage: diagnostic.stage,
             message: diagnostic.message,
             retryable: diagnostic.retryable,
+            ...(diagnostic.details ? { details: diagnostic.details } : {}),
           },
         },
-        diagnostic.code === "INVALID_YOUTUBE_URL" ? 400 : 500
+        monetizationScanErrorHttpStatus(diagnostic.code)
       );
     }
   };

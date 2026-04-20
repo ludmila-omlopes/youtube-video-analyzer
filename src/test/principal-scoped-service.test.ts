@@ -7,15 +7,14 @@ import {
   InMemoryUsageEventStore,
   type AuthPrincipal,
 } from "../auth-billing/index.js";
-import type { AnalysisExecutionContext } from "../youtube-core/index.js";
-import { DiagnosticError } from "../lib/errors.js";
+import { DiagnosticError, type AnalysisExecutionContext } from "@ludylops/video-analysis-core";
 
 import { testLogger } from "./test-helpers.js";
 
 const principal: AuthPrincipal = {
   subject: "auth0|scoped-1",
   issuer: "https://issuer.example.com/",
-  audience: "https://app.example.com/mcp",
+  audience: "https://app.example.com/",
   scope: [],
   tokenId: "tok",
   rawClaims: {},

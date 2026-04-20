@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { YT_DLP_DEFAULT_FORMAT, YT_DLP_OUTPUT_TEMPLATE } from "../dist/lib/constants.js";
+import { YT_DLP_DEFAULT_FORMAT, YT_DLP_OUTPUT_TEMPLATE } from "@ludylops/video-analysis-core";
 
 const execFileAsync = promisify(execFile);
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "youtube-download-diagnose-"));

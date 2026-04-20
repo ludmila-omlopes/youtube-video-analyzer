@@ -1,12 +1,12 @@
 services:
   - type: keyvalue
-    name: youtube-analyzer-redis
+    name: youtube-video-analyzer-redis
     plan: starter
     ipAllowList: []
     maxmemoryPolicy: noeviction
 
   - type: web
-    name: youtube-analyzer-mcp
+    name: youtube-video-analyzer
     runtime: node
     plan: starter
     buildCommand: npm ci && npm run build
@@ -20,12 +20,12 @@ services:
       - key: REDIS_HOST
         fromService:
           type: keyvalue
-          name: youtube-analyzer-redis
+          name: youtube-video-analyzer-redis
           property: host
       - key: REDIS_PORT
         fromService:
           type: keyvalue
-          name: youtube-analyzer-redis
+          name: youtube-video-analyzer-redis
           property: port
       - key: GEMINI_API_KEY
         sync: false
@@ -57,7 +57,7 @@ services:
         sync: false
 
   - type: worker
-    name: youtube-analyzer-mcp-worker
+    name: youtube-video-analyzer-worker
     runtime: node
     plan: starter
     buildCommand: npm ci && npm run build
@@ -70,12 +70,12 @@ services:
       - key: REDIS_HOST
         fromService:
           type: keyvalue
-          name: youtube-analyzer-redis
+          name: youtube-video-analyzer-redis
           property: host
       - key: REDIS_PORT
         fromService:
           type: keyvalue
-          name: youtube-analyzer-redis
+          name: youtube-video-analyzer-redis
           property: port
       - key: GEMINI_API_KEY
         sync: false
@@ -83,7 +83,7 @@ services:
         sync: false
 
   - type: web
-    name: youtube-analyzer-mcp-admin
+    name: youtube-video-analyzer-admin
     runtime: node
     plan: starter
     buildCommand: npm ci && npm run build
@@ -97,7 +97,7 @@ services:
       - key: REDIS_URL
         fromService:
           type: keyvalue
-          name: youtube-analyzer-redis
+          name: youtube-video-analyzer-redis
           property: connectionString
       - key: ADMIN_USERNAME
         sync: false

@@ -65,7 +65,7 @@ function toAuthPrincipal(record: ApiKeyRecord): AuthPrincipal {
   return {
     subject: record.subject,
     issuer: record.issuer,
-    audience: ["youtube-analyzer-web", "youtube-analyzer-mcp"],
+    audience: ["youtube-video-analyzer-web", "youtube-video-analyzer"],
     scope: ["api:key"],
     tokenId: record.keyId,
     rawClaims: {

@@ -8,7 +8,7 @@ import { Queue } from "bullmq";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { Redis } from "ioredis";
 
-import { LONG_ANALYSIS_JOB_QUEUE_NAME } from "../lib/constants.js";
+import { LONG_ANALYSIS_JOB_QUEUE_NAME } from "@ludylops/video-analysis-core";
 
 export type DashboardServerConfig = {
   host: string;
@@ -148,7 +148,7 @@ function createDashboardAuthMiddleware(auth: DashboardAuthConfig) {
       return;
     }
 
-    response.setHeader("www-authenticate", 'Basic realm="youtube-analyzer-bull-board"');
+    response.setHeader("www-authenticate", 'Basic realm="youtube-video-analyzer-bull-board"');
     response.status(401).type("text/plain; charset=utf-8").send("Authentication required.");
   };
 }
@@ -180,7 +180,7 @@ export function createQueueDashboardApp(
     serverAdapter,
     options: {
       uiConfig: {
-        boardTitle: "YouTube Analyzer Queue Dashboard",
+        boardTitle: "YouTube Video Analyzer Queue Dashboard",
         hideRedisDetails: true,
       },
     },

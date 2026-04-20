@@ -14,7 +14,7 @@ function createValidWebEnv(): NodeJS.ProcessEnv {
     REDIS_URL: "redis://127.0.0.1:6379",
     OAUTH_ENABLED: "true",
     OAUTH_ISSUER: "https://issuer.example.com/",
-    OAUTH_AUDIENCE: "https://youtube-analyzer.example.com/api/mcp",
+    OAUTH_AUDIENCE: "https://youtube-analyzer.example.com/",
     OAUTH_JWKS_URL: "https://issuer.example.com/.well-known/jwks.json",
     OAUTH_REQUIRED_SCOPE: "mcp:access",
     OAUTH_WEB_CLIENT_ID: "client-123",

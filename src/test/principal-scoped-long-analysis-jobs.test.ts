@@ -8,12 +8,12 @@ import {
   type AuthPrincipal,
 } from "../auth-billing/index.js";
 import type { LongAnalysisJobs } from "../platform-runtime/index.js";
-import type { LongToolInput } from "../youtube-core/index.js";
+import type { LongToolInput } from "@ludylops/video-analysis-core";
 
 const principalA: AuthPrincipal = {
   subject: "google-oauth2|user-a",
   issuer: "https://issuer.example.com/",
-  audience: "https://youtube-analyzer-mcp.onrender.com/api/mcp",
+  audience: "https://youtube-video-analyzer.onrender.com/",
   scope: [],
   tokenId: "token-a",
   rawClaims: {},
@@ -22,7 +22,7 @@ const principalA: AuthPrincipal = {
 const principalB: AuthPrincipal = {
   subject: "google-oauth2|user-b",
   issuer: "https://issuer.example.com/",
-  audience: "https://youtube-analyzer-mcp.onrender.com/api/mcp",
+  audience: "https://youtube-video-analyzer.onrender.com/",
   scope: [],
   tokenId: "token-b",
   rawClaims: {},

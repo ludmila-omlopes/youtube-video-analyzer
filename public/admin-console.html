@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Operator console · Accounts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #07090d;
+        --surface: #10141c;
+        --elevated: #161c28;
+        --line: rgba(255, 255, 255, 0.09);
+        --text: #e8ecf4;
+        --muted: rgba(232, 236, 244, 0.62);
+        --accent: #6ee7b7;
+        --accent-dim: rgba(110, 231, 183, 0.14);
+        --warn: #fcd34d;
+        --bad: #fca5a5;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+        --sans: "DM Sans", system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: var(--sans);
+        color: var(--text);
+        background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(110, 231, 183, 0.12), transparent),
+          linear-gradient(180deg, #0c1018 0%, var(--bg) 100%);
+      }
+      a {
+        color: var(--accent);
+      }
+      .shell {
+        width: min(calc(100% - 32px), 1280px);
+        margin: 0 auto;
+        padding: 28px 0 56px;
+      }
+      .top {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 28px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.65rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+        max-width: 520px;
+        line-height: 1.55;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 20px 22px;
+      }
+      .token-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+        flex: 1;
+        min-width: 220px;
+      }
+      input,
+      select,
+      button {
+        font: inherit;
+      }
+      input,
+      select {
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--elevated);
+        color: var(--text);
+      }
+      input[type="password"] {
+        font-family: var(--mono);
+        font-size: 0.85rem;
+      }
+      .btn {
+        padding: 10px 18px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #042f1f;
+      }
+      .btn-ghost {
+        background: transparent;
+        border-color: var(--line);
+        color: var(--text);
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .toolbar input[type="search"] {
+        flex: 1;
+        min-width: 200px;
+      }
+      .status {
+        font-size: 0.9rem;
+      }
+      .status[data-tone="good"] {
+        color: var(--accent);
+      }
+      .status[data-tone="warn"] {
+        color: var(--warn);
+      }
+      .status[data-tone="bad"] {
+        color: var(--bad);
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 0.68rem;
+        color: var(--muted);
+        background: rgba(0, 0, 0, 0.25);
+        white-space: nowrap;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      tr:hover td {
+        background: rgba(0, 0, 0, 0.15);
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        word-break: break-all;
+      }
+      .pill {
+        display: inline-block;
+        padding: 3px 6px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .credits-strong {
+        color: var(--accent);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .panel {
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 12px;
+        background: var(--elevated);
+        border: 1px solid var(--line);
+        display: none;
+      }
+      .panel.is-open {
+        display: block;
+      }
+      .panel-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
+      .mini-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: flex-end;
+      }
+      .mini-actions label {
+        min-width: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="top">
+        <div>
+          <h1>Operator console</h1>
+          <p class="sub">
+            View every remote account, credit balance, and plan. Use the same token as <code>ADMIN_CONSOLE_TOKEN</code> on
+            the server. Set credits manually until billing is wired up.
+          </p>
+        </div>
+        <a class="btn btn-ghost" href="/app">← Creator app</a>
+      </header>
+
+      <section class="card" style="margin-bottom: 20px">
+        <label>
+          Admin token
+          <div class="token-row">
+            <input id="admin-token" type="password" autocomplete="off" placeholder="Paste bearer token" />
+            <button class="btn btn-primary" type="button" id="save-token">Save locally</button>
+            <button class="btn btn-ghost" type="button" id="clear-token">Clear</button>
+          </div>
+        </label>
+        <p class="status" id="status-line" data-tone="warn" style="margin-top: 14px">Enter a token to load accounts.</p>
+      </section>
+
+      <section class="card">
+        <div class="toolbar">
+          <input id="filter" type="search" placeholder="Filter by subject, issuer, or account id…" />
+          <button class="btn btn-primary" type="button" id="refresh">Refresh</button>
+          <span class="status" id="count-line" data-tone="good"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th>Issuer</th>
+                <th>Plan</th>
+                <th>Credits</th>
+                <th>Last seen</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr>
+                <td colspan="6"><span class="status" data-tone="warn">No data yet.</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const TOKEN_KEY = "youtubeAnalyzer.adminConsoleToken";
+      const dom = {
+        adminToken: document.getElementById("admin-token"),
+        saveToken: document.getElementById("save-token"),
+        clearToken: document.getElementById("clear-token"),
+        statusLine: document.getElementById("status-line"),
+        filter: document.getElementById("filter"),
+        refresh: document.getElementById("refresh"),
+        countLine: document.getElementById("count-line"),
+        tbody: document.getElementById("tbody"),
+      };
+
+      let accounts = [];
+
+      function setStatus(message, tone = "warn") {
+        dom.statusLine.textContent = message;
+        dom.statusLine.dataset.tone = tone;
+      }
+
+      function getStoredToken() {
+        return window.sessionStorage.getItem(TOKEN_KEY) || "";
+      }
+
+      function authHeaders() {
+        const token = getStoredToken().trim();
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      }
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            "content-type": "application/json",
+            ...authHeaders(),
+            ...(options.headers || {}),
+          },
+        });
+        const type = response.headers.get("content-type") || "";
+        const payload = type.includes("application/json") ? await response.json() : await response.text();
+        return { response, payload };
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function formatDate(iso) {
+        if (!iso) return "—";
+        const d = Date.parse(iso);
+        return Number.isNaN(d) ? iso : new Date(d).toLocaleString();
+      }
+
+      /** Safe fragment for HTML ids (account ids can include `:`, `/`, etc.). */
+      function safeDomId(accountId) {
+        return btoa(unescape(encodeURIComponent(accountId)))
+          .replaceAll("+", "-")
+          .replaceAll("/", "_")
+          .replaceAll("=", "");
+      }
+
+      function rowMatchesFilter(row, query) {
+        if (!query) return true;
+        const q = query.toLowerCase();
+        return (
+          row.accountId.toLowerCase().includes(q) ||
+          row.subject.toLowerCase().includes(q) ||
+          row.issuer.toLowerCase().includes(q)
+        );
+      }
+
+      function renderTable() {
+        const query = dom.filter.value.trim();
+        const filtered = accounts.filter((row) => rowMatchesFilter(row, query));
+        dom.countLine.textContent = filtered.length === accounts.length
+          ? `${accounts.length} account${accounts.length === 1 ? "" : "s"}`
+          : `${filtered.length} shown · ${accounts.length} total`;
+
+        if (!filtered.length) {
+          dom.tbody.innerHTML = `<tr><td colspan="6"><span class="status" data-tone="warn">No accounts match.</span></td></tr>`;
+          return;
+        }
+
+        dom.tbody.innerHTML = filtered
+          .map((row) => {
+            const sid = safeDomId(row.accountId);
+            return `
+          <tr data-account="${escapeHtml(row.accountId)}">
+            <td><code>${escapeHtml(row.subject)}</code></td>
+            <td><code>${escapeHtml(row.issuer)}</code></td>
+            <td><span class="pill">${escapeHtml(row.plan)}</span></td>
+            <td><span class="credits-strong">${row.creditBalance}</span></td>
+            <td>${escapeHtml(formatDate(row.lastSeenAt))}</td>
+            <td><button class="btn btn-ghost" type="button" data-expand="${sid}">Manage</button></td>
+          </tr>
+          <tr class="panel-row" id="panel-${sid}" style="display:none">
+            <td colspan="6" style="padding:0;border:none;background:transparent">
+              <div class="panel" id="panel-inner-${sid}"></div>
+            </td>
+          </tr>`;
+          })
+          .join("");
+
+        for (const row of filtered) {
+          const sid = safeDomId(row.accountId);
+          const btn = dom.tbody.querySelector(`[data-expand="${sid}"]`);
+          if (btn) {
+            btn.addEventListener("click", () => togglePanel(sid, row));
+          }
+        }
+      }
+
+      function togglePanel(safeId, row) {
+        const accountId = row.accountId;
+        const panelRow = document.getElementById(`panel-${safeId}`);
+        const inner = document.getElementById(`panel-inner-${safeId}`);
+        if (!panelRow || !inner) return;
+
+        const open = panelRow.style.display !== "none";
+        if (open) {
+          panelRow.style.display = "none";
+          inner.classList.remove("is-open");
+          return;
+        }
+
+        dom.tbody.querySelectorAll(".panel-row").forEach((el) => {
+          el.style.display = "none";
+        });
+        dom.tbody.querySelectorAll(".panel").forEach((el) => {
+          el.classList.remove("is-open");
+        });
+
+        panelRow.style.display = "table-row";
+        inner.classList.add("is-open");
+        inner.innerHTML = `
+          <div class="panel-grid">
+            <div>
+              <label style="display:block;margin-bottom:0.5rem">Account id</label>
+              <code style="font-size:0.8rem">${escapeHtml(accountId)}</code>
+            </div>
+            <div>
+              <label style="display:block;margin-bottom:0.5rem">Status</label>
+              ${escapeHtml(row.status)}
+            </div>
+          </div>
+          <div class="mini-actions" style="margin-top:12px">
+            <label>
+              Grant credits
+              <input type="number" min="1" step="1" id="grant-${safeId}" value="50" />
+            </label>
+            <button class="btn btn-primary" type="button" id="grant-btn-${safeId}">Grant</button>
+            <label>
+              Plan
+              <select id="plan-${safeId}">
+                <option value="trial" ${row.plan === "trial" ? "selected" : ""}>trial</option>
+                <option value="builder" ${row.plan === "builder" ? "selected" : ""}>builder</option>
+                <option value="pro" ${row.plan === "pro" ? "selected" : ""}>pro</option>
+                <option value="business" ${row.plan === "business" ? "selected" : ""}>business</option>
+              </select>
+            </label>
+            <button class="btn btn-primary" type="button" id="plan-btn-${safeId}">Update plan</button>
+          </div>
+        `;
+
+        document.getElementById(`grant-btn-${safeId}`).addEventListener("click", async () => {
+          const n = Number(document.getElementById(`grant-${safeId}`).value);
+          if (!Number.isFinite(n) || n < 1) {
+            setStatus("Enter a positive credit amount.", "bad");
+            return;
+          }
+          setStatus("Granting credits…", "warn");
+          const { response, payload } = await fetchJson("/admin/api/account/grant-credits", {
+            method: "POST",
+            body: JSON.stringify({ accountId, credits: Math.floor(n) }),
+          });
+          if (response.status === 401 || response.status === 503) {
+            setStatus(payload?.error?.message || "Unauthorized or admin not configured.", "bad");
+            return;
+          }
+          if (!response.ok) {
+            setStatus(typeof payload?.error === "string" ? payload.error : payload?.error?.message || "Grant failed.", "bad");
+            return;
+          }
+          setStatus(`Granted ${n} credits. New balance: ${payload.account.creditBalance}.`, "good");
+          await loadAccounts();
+        });
+
+        document.getElementById(`plan-btn-${safeId}`).addEventListener("click", async () => {
+          const plan = document.getElementById(`plan-${safeId}`).value;
+          setStatus("Updating plan…", "warn");
+          const { response, payload } = await fetchJson("/admin/api/account/plan", {
+            method: "POST",
+            body: JSON.stringify({ accountId, plan }),
+          });
+          if (response.status === 401 || response.status === 503) {
+            setStatus(payload?.error?.message || "Unauthorized or admin not configured.", "bad");
+            return;
+          }
+          if (!response.ok) {
+            setStatus(typeof payload?.error === "string" ? payload.error : payload?.error?.message || "Plan update failed.", "bad");
+            return;
+          }
+          setStatus(`Plan set to ${plan}.`, "good");
+          await loadAccounts();
+        });
+      }
+
+      async function loadAccounts() {
+        setStatus("Loading accounts…", "warn");
+        const { response, payload } = await fetchJson("/admin/api/accounts?limit=2000");
+        if (response.status === 503) {
+          setStatus(payload?.error?.message || "Admin not configured on server.", "bad");
+          accounts = [];
+          renderTable();
+          return;
+        }
+        if (response.status === 401) {
+          setStatus(payload?.error?.message || "Invalid or missing token.", "bad");
+          accounts = [];
+          renderTable();
+          return;
+        }
+        if (!response.ok) {
+          setStatus("Failed to load accounts.", "bad");
+          return;
+        }
+        accounts = payload.accounts || [];
+        setStatus(`Loaded ${accounts.length} account${accounts.length === 1 ? "" : "s"}.`, "good");
+        renderTable();
+      }
+
+      dom.saveToken.addEventListener("click", () => {
+        const v = dom.adminToken.value.trim();
+        if (v) {
+          window.sessionStorage.setItem(TOKEN_KEY, v);
+        } else {
+          window.sessionStorage.removeItem(TOKEN_KEY);
+        }
+        void loadAccounts();
+      });
+
+      dom.clearToken.addEventListener("click", () => {
+        dom.adminToken.value = "";
+        window.sessionStorage.removeItem(TOKEN_KEY);
+        accounts = [];
+        renderTable();
+        setStatus("Token cleared.", "warn");
+      });
+
+      dom.refresh.addEventListener("click", () => {
+        void loadAccounts();
+      });
+
+      dom.filter.addEventListener("input", () => {
+        renderTable();
+      });
+
+      dom.adminToken.value = getStoredToken();
+      void loadAccounts();
+    </script>
+  </body>
+</html>

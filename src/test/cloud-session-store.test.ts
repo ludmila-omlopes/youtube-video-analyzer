@@ -5,7 +5,7 @@ import {
   RedisAnalysisSessionStore,
   resolveCloudSessionStoreDriver,
 } from "../platform-runtime/index.js";
-import type { AnalysisSession } from "../youtube-core/index.js";
+import type { AnalysisSession } from "@ludylops/video-analysis-core";
 
 class FakeKeyValueClient {
   private readonly values = new Map<string, string>();

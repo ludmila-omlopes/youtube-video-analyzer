@@ -2,9 +2,14 @@ node_modules
 dist
 .env
 .env.local
+.env.oauth.local
+.env.oauth.production
 .npm-cache*
 .tools/
 .mcpregistry_*_token
 
 .vercel
 .codex-hosted*.log
+.codex-smoke-*.log
+.claude/
+.tmp/

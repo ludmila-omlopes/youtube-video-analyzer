@@ -11,7 +11,7 @@ import {
 const principal: AuthPrincipal = {
   subject: "google-oauth2|user-1",
   issuer: "https://issuer.example.com/",
-  audience: "https://youtube-analyzer-mcp.onrender.com/api/mcp",
+  audience: "https://youtube-video-analyzer.onrender.com/",
   scope: [],
   tokenId: "token-1",
   rawClaims: {},
@@ -29,6 +29,10 @@ export async function run(): Promise<void> {
 
   const created = await store.upsertAccount(principal);
   assert.equal(created.accountId, accountId);
+
+  const listed = await store.listAccounts({ limit: 10 });
+  assert.equal(listed.length, 1);
+  assert.equal(listed[0]?.accountId, accountId);
   assert.equal(created.subject, principal.subject);
   assert.equal(created.issuer, principal.issuer);
   assert.equal(typeof created.createdAt, "string");

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 
-import { LOW_MEDIA_RESOLUTION } from "../lib/constants.js";
-import { buildVideoPart } from "../lib/gemini.js";
+import { buildVideoPart, LOW_MEDIA_RESOLUTION } from "@ludylops/video-analysis-core";
 
 export async function run(): Promise<void> {
   const uploadedPart = buildVideoPart(

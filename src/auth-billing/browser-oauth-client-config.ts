@@ -5,14 +5,13 @@ function readTrimmedEnv(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function requireAbsoluteUrl(name: string, value: string): string {
+function isValidAbsoluteHttpUrl(value: string): boolean {
   try {
-    new URL(value);
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
-    throw new Error(`${name} must be a valid absolute URL.`);
+    return false;
   }
-
-  return value;
 }
 
 function parseScopes(value: string | undefined): string[] {
@@ -60,14 +59,14 @@ export function getBrowserOAuthClientConfig(
   const authorizationUrl = readTrimmedEnv(env.OAUTH_WEB_AUTHORIZATION_URL);
   const tokenUrl = readTrimmedEnv(env.OAUTH_WEB_TOKEN_URL);
   const clientId = readTrimmedEnv(env.OAUTH_WEB_CLIENT_ID);
-  const redirectPath = readTrimmedEnv(env.OAUTH_WEB_REDIRECT_PATH) ?? "/app";
-  const scopes = parseScopes(readTrimmedEnv(env.OAUTH_WEB_SCOPES) ?? readTrimmedEnv(env.OAUTH_REQUIRED_SCOPE));
-  const audience = readTrimmedEnv(env.OAUTH_WEB_AUDIENCE) ?? null;
-  const resource = readTrimmedEnv(env.OAUTH_WEB_RESOURCE) ?? null;
-
+  let redirectPath = readTrimmedEnv(env.OAUTH_WEB_REDIRECT_PATH) ?? "/oauth/callback";
   if (!redirectPath.startsWith("/")) {
-    throw new Error("OAUTH_WEB_REDIRECT_PATH must start with '/'.");
+    redirectPath = "/oauth/callback";
   }
+  const scopes = parseScopes(readTrimmedEnv(env.OAUTH_WEB_SCOPES) ?? readTrimmedEnv(env.OAUTH_REQUIRED_SCOPE));
+  const apiAudience = readTrimmedEnv(env.OAUTH_AUDIENCE) ?? null;
+  const audience = readTrimmedEnv(env.OAUTH_WEB_AUDIENCE) ?? apiAudience;
+  const resource = readTrimmedEnv(env.OAUTH_WEB_RESOURCE) ?? apiAudience;
 
   const presentCount = [authorizationUrl, tokenUrl, clientId].filter(Boolean).length;
   if (presentCount === 0) {
@@ -98,11 +97,25 @@ export function getBrowserOAuthClientConfig(
     };
   }
 
+  if (!isValidAbsoluteHttpUrl(authorizationUrl) || !isValidAbsoluteHttpUrl(tokenUrl)) {
+    return {
+      enabled: false,
+      reason: "incomplete_config",
+      authorizationUrl: null,
+      tokenUrl: null,
+      clientId: null,
+      redirectPath,
+      scopes,
+      audience,
+      resource,
+    };
+  }
+
   return {
     enabled: true,
     reason: null,
-    authorizationUrl: requireAbsoluteUrl("OAUTH_WEB_AUTHORIZATION_URL", authorizationUrl),
-    tokenUrl: requireAbsoluteUrl("OAUTH_WEB_TOKEN_URL", tokenUrl),
+    authorizationUrl,
+    tokenUrl,
     clientId,
     redirectPath,
     scopes,

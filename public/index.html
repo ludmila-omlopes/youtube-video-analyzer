@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>YouTube Analyzer | YouTube Intelligence Platform</title>
+    <title>YouTube Video Analyzer | YouTube Intelligence Platform</title>
     <meta
       name="description"
-      content="A YouTube intelligence platform for structured video analysis, remote MCP access, async long-form jobs, and creator workflows."
+      content="A YouTube intelligence platform for structured video analysis, a versioned HTTP API, async long-form jobs, and creator workflows."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -339,15 +339,17 @@
   <body>
     <header class="header">
       <div class="wrap">
-        <a class="brand" href="#top" aria-label="YouTube Analyzer home">
+        <a class="brand" href="#top" aria-label="YouTube Video Analyzer home">
           <span class="mark">YA</span>
-          <span>YouTube Analyzer</span>
+          <span>YouTube Video Analyzer</span>
         </a>
         <nav class="nav" aria-label="Primary navigation">
           <a href="#surfaces">Surfaces</a>
           <a href="#workflow">Workflow</a>
           <a href="#deploy">Deploy</a>
           <a href="#start">Start</a>
+          <a href="/dashboard">Account</a>
+          <a href="/docs/api">API docs</a>
         </nav>
       </div>
     </header>
@@ -362,12 +364,14 @@
               <span>structured intelligence.</span>
             </h1>
             <p class="lede">
-              Analyze short clips, run async long-form jobs, normalize metadata, and expose the workflow through
-              local stdio, remote MCP, or hosted HTTP. MCP is one surface. The platform is the product.
+              Analyze short clips, run async long-form jobs, normalize metadata, and drive everything from a hosted
+              HTTP API, web dashboard, and background workers. The analysis core also ships through a separate
+              companion MCP package for local agent workflows.
             </p>
             <div class="actions">
-              <a class="button" href="/app">Open web app</a>
-              <a class="ghost" href="/api/mcp">Open MCP endpoint</a>
+              <a class="button" href="/login">Sign in</a>
+              <a class="ghost" href="/dashboard">Account dashboard</a>
+              <a class="ghost" href="/docs/api">API reference</a>
               <a class="ghost" href="#deploy">See deployment shape</a>
             </div>
             <div class="chips" aria-label="Product highlights">
@@ -380,7 +384,7 @@
           <aside class="hero-panel" data-reveal>
             <div class="panel-top">
               <span>Hosted surface</span>
-              <span>Remote MCP + queue worker</span>
+              <span>HTTP API + queue worker</span>
             </div>
             <p class="panel-title">
               One core for <span>analysis, metadata, sessions,</span> and follow-up workflows.
@@ -388,9 +392,9 @@
             <div class="endpoint">
               <div class="endpoint-meta">
                 <span>Live endpoint</span>
-                <button class="copy" type="button" data-copy-target="mcp-endpoint">Copy URL</button>
+                <button class="copy" type="button" data-copy-target="api-docs-endpoint">Copy URL</button>
               </div>
-              <code id="mcp-endpoint" data-mcp-url>/api/mcp</code>
+              <code id="api-docs-endpoint" data-api-docs-url>/docs/api</code>
             </div>
             <div class="frames" aria-hidden="true">
               <div class="frame">
@@ -418,8 +422,8 @@
               <h2>The same analysis engine, exposed <span>three ways.</span></h2>
             </div>
             <p class="section-copy">
-              The repo already behaves more like a platform than a single MCP package. The right move is to keep
-              MCP, but stop letting it define the whole product story.
+              This deployment is the hosted product: credits, accounts, jobs, and browser flows. The separate MCP
+              stdio package remains the best path for deep local agent sessions in its own npm release.
             </p>
           </div>
 
@@ -427,7 +431,7 @@
             <article class="row" data-reveal>
               <div class="index">01</div>
               <div>
-                <h3>Local MCP for agent-native workflows</h3>
+                <h3>Companion MCP for agent-native workflows</h3>
                 <p>Registry-ready stdio for desktop clients, deep follow-up sessions, and the blocking tools that only make sense close to local compute.</p>
               </div>
               <ul class="points">
@@ -440,11 +444,11 @@
             <article class="row" data-reveal>
               <div class="index">02</div>
               <div>
-                <h3>Remote MCP for hosted clients</h3>
-                <p>Streamable HTTP for agents that need a public endpoint, bearer auth, and a remote-safe way to kick off long-running analysis jobs.</p>
+                <h3>Hosted HTTP API for integrations</h3>
+                <p>Versioned REST routes, API keys, OAuth bearer tokens, and async long-video jobs through a Redis-backed worker.</p>
               </div>
               <ul class="points">
-                <li>Public endpoint at <code>/api/mcp</code></li>
+                <li>Primary surface at <code>/api/v1/*</code> (see <code>/docs/api</code>)</li>
                 <li>OAuth-protected resource metadata when enabled</li>
                 <li>Queue-backed long-video polling flow</li>
               </ul>
@@ -473,7 +477,7 @@
             <h2>Built for more than <span>a single prompt.</span></h2>
             <p>
               The core already handles URL normalization, strategy selection, chunk planning, async jobs,
-              structured JSON validation, and session-aware follow-up. That is platform behavior, not a thin MCP wrapper.
+              structured JSON validation, and session-aware follow-up. That is platform behavior, not a thin wrapper.
             </p>
             <div class="terminal">
               <div class="terminal-bar" aria-hidden="true">
@@ -526,7 +530,7 @@
               <h2>Render is the production path. <span>Vercel is optional.</span></h2>
             </div>
             <p class="section-copy">
-              The current runtime already wants a hosted MCP endpoint, a background worker, Redis, and an admin surface. That architecture maps cleanly to Render and only partially to Vercel.
+              The current runtime wants a public web service, a background worker, Redis, and an admin surface. That architecture maps cleanly to Render and only partially to Vercel.
             </p>
           </div>
 
@@ -548,11 +552,10 @@
               <div class="index">Optional</div>
               <div>
                 <h3>Vercel <span class="badge secondary">Thin adapter</span></h3>
-                <p>Keep only if you want a stateless MCP HTTP adapter or preview surface. It is not the canonical deployment target for the full platform runtime.</p>
+                <p>Keep only if you want a thin preview or edge-hosted surface. It is not the canonical deployment target for the full platform runtime.</p>
               </div>
               <ul class="points">
-                <li><code>api/mcp.ts</code> remains a small compatibility layer</li>
-                <li><code>vercel.json</code> is optional, not production-critical for Render</li>
+                <li><code>vercel.json</code> is minimal; Vercel is optional and not production-critical for Render</li>
                 <li>Do not let the Vercel path drive product positioning</li>
               </ul>
             </article>
@@ -563,9 +566,10 @@
       <section class="final" id="start">
         <div class="wrap final-band" data-reveal>
           <div class="label">Start here</div>
-          <h2>Use the MCP now, then keep building the platform around it.</h2>
+          <h2>Ship analysis as infrastructure, not a one-off script.</h2>
           <p class="section-text">
-            Keep the registry-friendly package. Keep the hosted endpoint. But let the public narrative graduate from an MCP server into a YouTube workflow platform.
+            Use the hosted API and worker runtime for production traffic. Use the companion MCP package when you need
+            local stdio tools and long follow-up sessions on your own machine.
           </p>
           <div class="terminal">
             <div class="terminal-bar" aria-hidden="true">
@@ -576,9 +580,9 @@
             <code id="install-command">npx -y @ludylops/youtube-video-analyzer-mcp</code>
           </div>
           <div class="final-actions">
-            <a class="button" href="/app">Open product shell</a>
+            <a class="button" href="/login">Sign in</a>
             <button class="button" type="button" data-copy-target="install-command">Copy install command</button>
-            <a class="ghost" href="/api/mcp">Inspect MCP route</a>
+            <a class="ghost" href="/docs/api">Browse API docs</a>
           </div>
         </div>
       </section>
@@ -586,14 +590,14 @@
 
     <footer class="footer">
       <div class="wrap">
-        <span>YouTube Analyzer is evolving from a single MCP package into a broader YouTube intelligence platform.</span>
-        <span>Hosted endpoint: <strong data-mcp-url>/api/mcp</strong></span>
+        <span>YouTube Video Analyzer is the hosted product, with a separate companion package for MCP workflows.</span>
+        <span>API docs: <strong data-api-docs-url>/docs/api</strong> · <a href="/docs/api/raw">Markdown</a></span>
       </div>
     </footer>
 
     <script>
-      const endpoint = new URL("/api/mcp", window.location.origin).toString();
-      for (const element of document.querySelectorAll("[data-mcp-url]")) {
+      const endpoint = new URL("/docs/api", window.location.origin).toString();
+      for (const element of document.querySelectorAll("[data-api-docs-url]")) {
         element.textContent = endpoint;
       }
       for (const button of document.querySelectorAll("[data-copy-target]")) {

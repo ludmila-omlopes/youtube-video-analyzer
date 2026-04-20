@@ -29,12 +29,12 @@ import type {
   ShortToolInput,
   ShortToolOutput,
   VideoAnalysisServiceLike,
-} from "../youtube-core/index.js";
+} from "@ludylops/video-analysis-core";
 
 const principal: AuthPrincipal = {
   subject: "api-user-1",
   issuer: "local://api-tests",
-  audience: "youtube-analyzer-web",
+  audience: "youtube-video-analyzer-web",
   scope: ["web:local"],
   tokenId: null,
   rawClaims: {},
@@ -46,7 +46,7 @@ const localConfig: OAuthConfig = {
   audience: null,
   jwksUrl: null,
   requiredScope: null,
-  resourceName: "youtube-video-analyzer-mcp",
+  resourceName: "youtube-video-analyzer",
   clockToleranceSeconds: 5,
 };
 

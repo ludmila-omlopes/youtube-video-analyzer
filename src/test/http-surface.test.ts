@@ -3,14 +3,15 @@ import assert from "node:assert/strict";
 import { OAUTH_PROTECTED_RESOURCE_METADATA_PATH } from "../lib/auth/protected-resource-metadata.js";
 import {
   handleApiMetadataHttpSurfaceRequest,
-  handleMcpHttpSurfaceRequest,
+  handleDocsApiHtmlSurfaceRequest,
+  handleDocsApiRawHttpSurfaceRequest,
   resolveHttpSurfaceRoute,
 } from "../http/http-surface.js";
 
 export async function run(): Promise<void> {
   const mcpGetRoute = resolveHttpSurfaceRoute("/api/mcp", "GET");
-  assert.equal(mcpGetRoute instanceof Response, false);
-  assert.equal(mcpGetRoute, handleMcpHttpSurfaceRequest);
+  assert.equal(mcpGetRoute instanceof Response, true);
+  assert.equal((mcpGetRoute as Response).status, 404);
 
   const metadataGetRoute = resolveHttpSurfaceRoute(OAUTH_PROTECTED_RESOURCE_METADATA_PATH, "GET");
   assert.equal(metadataGetRoute instanceof Response, false);
@@ -22,18 +23,64 @@ export async function run(): Promise<void> {
   );
   const rootHtml = await rootResponse.text();
   assert.equal(rootResponse.headers.get("content-type"), "text/html; charset=utf-8");
-  assert.match(rootHtml, /YouTube Analyzer \| YouTube Intelligence Platform/);
+  assert.match(rootHtml, /YouTube Video Analyzer \| YouTube Intelligence Platform/);
   assert.match(rootHtml, /Turn public videos into/);
-  assert.match(rootHtml, /\/api\/mcp/);
-  assert.match(rootHtml, /\/app/);
+  assert.match(rootHtml, /\/docs\/api/);
+  assert.match(rootHtml, /\/login/);
+
+  const dashboardRoute = resolveHttpSurfaceRoute("/dashboard", "GET");
+  assert.equal(dashboardRoute instanceof Response, false);
+  const dashboardResponse = await (dashboardRoute as (request: Request) => Promise<Response>)(
+    new Request("https://example.com/dashboard")
+  );
+  const dashboardHtml = await dashboardResponse.text();
+  assert.equal(dashboardResponse.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.match(dashboardHtml, /Account/);
+  assert.match(dashboardHtml, /YouTube Video Analyzer/);
+  assert.match(dashboardHtml, /\/api\/web\/session/);
 
   const appRoute = resolveHttpSurfaceRoute("/app", "GET");
   assert.equal(appRoute instanceof Response, false);
-  const appResponse = await (appRoute as () => Promise<Response>)();
-  const appHtml = await appResponse.text();
-  assert.equal(appResponse.headers.get("content-type"), "text/html; charset=utf-8");
-  assert.match(appHtml, /Monetization Scan/);
-  assert.match(appHtml, /web workflow shell/i);
+  const appResponse = await (appRoute as (request: Request) => Promise<Response>)(
+    new Request("https://example.com/app")
+  );
+  assert.equal(appResponse.status, 302);
+  assert.equal(appResponse.headers.get("location"), "/dashboard");
+
+  const loginRoute = resolveHttpSurfaceRoute("/login", "GET");
+  assert.equal(loginRoute instanceof Response, false);
+  const loginResponse = await (loginRoute as (request: Request) => Promise<Response>)(
+    new Request("https://example.com/login")
+  );
+  assert.equal(loginResponse.status, 503);
+  const loginPayload = (await loginResponse.json()) as { error: { code: string } };
+  assert.equal(loginPayload.error.code, "OAUTH_BROWSER_NOT_CONFIGURED");
+
+  const callbackRoute = resolveHttpSurfaceRoute("/oauth/callback", "GET");
+  assert.equal(callbackRoute instanceof Response, false);
+
+  const docsHtmlRoute = resolveHttpSurfaceRoute("/docs/api", "GET");
+  assert.equal(docsHtmlRoute instanceof Response, false);
+  assert.equal(docsHtmlRoute, handleDocsApiHtmlSurfaceRequest);
+  const docsHtmlResponse = await (docsHtmlRoute as (request: Request) => Promise<Response>)(
+    new Request("https://example.com/docs/api")
+  );
+  const docsHtmlBody = await docsHtmlResponse.text();
+  assert.equal(docsHtmlResponse.headers.get("content-type"), "text/html; charset=utf-8");
+  assert.match(docsHtmlBody, /HTTP API reference/);
+  assert.match(docsHtmlBody, /YouTube Video Analyzer/);
+  assert.match(docsHtmlBody, /<article class="doc">/);
+  assert.match(docsHtmlBody, /Hosted HTTP API/);
+
+  const docsRawRoute = resolveHttpSurfaceRoute("/docs/api/raw", "GET");
+  assert.equal(docsRawRoute instanceof Response, false);
+  assert.equal(docsRawRoute, handleDocsApiRawHttpSurfaceRequest);
+  const docsRawResponse = await (docsRawRoute as (request: Request) => Promise<Response>)(
+    new Request("https://example.com/docs/api/raw")
+  );
+  const docsRawBody = await docsRawResponse.text();
+  assert.equal(docsRawResponse.headers.get("content-type"), "text/markdown; charset=utf-8");
+  assert.match(docsRawBody, /^# Hosted HTTP API/m);
 
   const healthRoute = resolveHttpSurfaceRoute("/healthz", "GET");
   assert.equal(healthRoute instanceof Response, false);
@@ -43,7 +90,7 @@ export async function run(): Promise<void> {
   assert.equal(healthResponse.status, 200);
   assert.deepEqual(await healthResponse.json(), { ok: true });
 
-  const methodNotAllowed = resolveHttpSurfaceRoute("/api/mcp", "PUT");
+  const methodNotAllowed = resolveHttpSurfaceRoute("/api/v1/metadata", "PUT");
   assert.equal(methodNotAllowed instanceof Response, true);
   assert.equal((methodNotAllowed as Response).status, 405);
 

@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>YouTube Analyzer App</title>
+    <title>Analyze a YouTube video</title>
     <meta
       name="description"
-      content="Run a monetization scan, inspect your account, and review saved workflow runs."
+      content="Analyze a public YouTube video with a short, structured summary. Uses credits per run."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,179 +18,119 @@
       :root{color-scheme:dark;--bg:#0a0d12;--surface:#121722;--line:rgba(255,255,255,.1);--text:#f4eee4;--muted:rgba(244,238,228,.68);--accent:#ff9152;--gold:#f7c98b;--good:#80d59b;--warn:#ffc96f;--bad:#ff8d8d}
       *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:"Space Grotesk",system-ui,sans-serif;color:var(--text);background:radial-gradient(circle at top,rgba(255,145,82,.16),transparent 28%),linear-gradient(180deg,#141923 0%,#0a0d12 42%,#0a0d12 100%)}
       a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}
-      .shell{width:min(calc(100% - 28px),1320px);margin:0 auto;padding:22px 0 44px}
-      .topbar,.workspace,.hero,.form-grid,.split,.rail-list,.stack{display:grid;gap:18px}
-      .topbar{grid-template-columns:minmax(0,1fr) auto;align-items:center}
-      .workspace{grid-template-columns:minmax(0,1.1fr) 340px;align-items:start}
+      .shell{width:min(calc(100% - 28px),720px);margin:0 auto;padding:22px 0 44px}
+      .topbar,.stack{display:flex;flex-direction:column;gap:18px}
+      .topbar{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
       .brand{display:inline-flex;align-items:center;gap:14px}.mark{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--gold),var(--accent));color:#20140d;font-weight:700}
       .eyebrow,.meta{color:var(--muted);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase}
-      .hero h1,.title{margin:0;font-family:"Instrument Serif",Georgia,serif;font-weight:400;line-height:.96;letter-spacing:-.04em}
-      .hero h1{font-size:clamp(3rem,7vw,5rem);max-width:12ch}.hero h1 span{color:var(--gold);font-style:italic}
+      .hero h1{margin:0;font-family:"Instrument Serif",Georgia,serif;font-weight:400;line-height:1.05;letter-spacing:-.04em;font-size:clamp(2.2rem,6vw,3.25rem)}
+      .hero h1 span{color:var(--gold);font-style:italic}
       .card{padding:22px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,rgba(18,23,34,.95),rgba(10,13,18,.96))}
       .copy,.rail-text,p,li{color:var(--muted);line-height:1.7}.copy,p{margin:0}
-      .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.push{justify-content:space-between}
-      .pill,.hint{padding:9px 13px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:.88rem;color:var(--muted)}
-      .pill{color:var(--gold);background:rgba(255,145,82,.12)}
+      .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+      .hint{padding:9px 13px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:.88rem;color:var(--muted)}
       input,textarea{width:100%;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--text)}
-      textarea{min-height:110px;resize:vertical}
+      textarea{min-height:100px;resize:vertical}
       label{display:grid;gap:8px}.label{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
       .actions{display:flex;flex-wrap:wrap;gap:12px}.button,.ghost{min-height:46px;padding:0 18px;border-radius:999px;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
       .button{background:linear-gradient(135deg,var(--gold),var(--accent));color:#1f120b;font-weight:700}.ghost{background:transparent;color:var(--text);border-color:rgba(255,255,255,.18)}
       .status[data-tone="good"]{color:var(--good)}.status[data-tone="bad"]{color:var(--bad)}.status[data-tone="warn"]{color:var(--warn)}
-      .entry{padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}.entry:first-child{padding-top:0;border-top:0}
       .signin.is-hidden{display:none}.empty{padding:16px;border:1px dashed rgba(255,255,255,.14);border-radius:18px;color:var(--muted)}
-      ol,ul{margin:0;padding-left:18px}
-      @media (max-width:1060px){.workspace,.hero,.split,.form-grid{grid-template-columns:1fr}}
-      @media (max-width:720px){.shell{width:min(calc(100% - 20px),1320px)}.card{padding:18px;border-radius:20px}}
+      ul{margin:0;padding-left:18px}
+      .credit-banner{padding:14px 18px;border-radius:18px;border:1px solid rgba(255,141,141,.35);background:rgba(255,80,80,.08);color:var(--muted);font-size:.92rem;line-height:1.5}
+      .credit-banner[data-tone="ok"]{border-color:rgba(128,213,155,.35);background:rgba(128,213,155,.1)}
+      .credit-banner[data-tone="warn"]{border-color:rgba(252,201,111,.4);background:rgba(252,201,111,.1)}
+      .result-block{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}.result-block:first-child{margin-top:0;padding-top:0;border-top:0}
+      .mono{font-size:.82rem;white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.25);padding:12px 14px;border-radius:12px;border:1px solid var(--line);color:var(--text)}
+      .footer-links{font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;margin-top:8px}
+      @media (max-width:720px){.card{padding:18px;border-radius:20px}}
     </style>
   </head>
   <body>
     <div class="shell">
       <header class="topbar">
-        <a class="brand" href="/">
+        <a class="brand" href="/app">
           <div class="mark">YA</div>
           <div>
-            <strong>YouTube Analyzer</strong><br />
-            <span class="meta">Web workflow shell</span>
+            <strong>YouTube Video Analyzer</strong><br />
+            <span class="meta">Short video analysis</span>
           </div>
         </a>
         <div class="row">
-          <a href="/">Platform story</a>
-          <a href="/api/mcp">MCP endpoint</a>
+          <a href="/">Home</a>
+          <a href="/docs/api">API docs</a>
+          <a href="/admin/console" style="opacity:.75">Admin</a>
         </div>
       </header>
 
-      <main class="workspace">
-        <section class="stack">
-          <section class="card hero">
-            <div>
-              <div class="eyebrow">Phase 5</div>
-              <h1>Turn one video into a <span>monetization brief</span>.</h1>
-            </div>
-            <div class="split" style="grid-template-columns:minmax(0,1fr) 280px">
-              <p class="copy">
-                This shell proves the platform is more than MCP: one guided workflow, account
-                visibility, saved runs, and connector context in the same surface.
-              </p>
-              <div class="card" style="padding:18px;border-radius:20px;background:rgba(255,255,255,.03)">
-                <div class="meta">Session mode</div>
-                <strong id="mode-label" style="display:block;margin-top:8px">Loading</strong>
-                <p class="rail-text" id="mode-copy" style="margin-top:12px">Checking current deployment mode.</p>
-              </div>
-            </div>
-          </section>
+      <main class="stack" style="margin-top:8px">
+        <div class="credit-banner" id="credit-banner" data-tone="ok" style="display:none"></div>
 
-          <section class="card">
-            <div class="row push">
-              <div>
-                <div class="meta">Guided workflow</div>
-                <h2 class="title" style="font-size:2rem;margin-top:8px">Monetization Scan</h2>
-              </div>
-              <div class="meta">Creator-side brief</div>
-            </div>
-            <p class="copy">Analyze a public video for sponsor fit, affiliate angles, CTA timing, and repurposing hooks.</p>
-
-            <form class="signin is-hidden stack" id="signin-form" style="margin-top:18px">
-              <p class="copy" id="signin-copy">Sign in with OAuth or paste a bearer token for protected deployments.</p>
-              <div class="actions">
-                <button class="button" type="button" id="oauth-signin-button">Continue with OAuth</button>
-                <button class="ghost" type="button" id="signout-button">Clear token</button>
-              </div>
-              <label>
-                <span class="label">Access token</span>
-                <textarea id="access-token" placeholder="Paste a bearer token for protected deployments." spellcheck="false"></textarea>
-              </label>
-              <div class="actions">
-                <button class="ghost" type="submit">Use pasted token</button>
-              </div>
-            </form>
-
-            <form class="stack" id="scan-form" style="margin-top:18px">
-              <label>
-                <span class="label">YouTube URL</span>
-                <input id="youtube-url" type="url" placeholder="https://www.youtube.com/watch?v=..." required />
-              </label>
-              <label>
-                <span class="label">Commercial focus</span>
-                <textarea id="focus" placeholder="Optional: product category, sponsor angle, or revenue goal."></textarea>
-              </label>
-              <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-                <label>
-                  <span class="label">Start offset</span>
-                  <input id="start-offset" type="number" min="0" step="1" placeholder="0" />
-                </label>
-                <label>
-                  <span class="label">End offset</span>
-                  <input id="end-offset" type="number" min="0" step="1" placeholder="Optional" />
-                </label>
-              </div>
-              <div class="row">
-                <span class="hint">Works best for reviews, explainers, interviews, and education videos.</span>
-                <span class="hint">Each scan updates history and usage events.</span>
-              </div>
-              <div class="actions">
-                <button class="button" id="scan-button" type="submit">Run monetization scan</button>
-                <button class="ghost" id="refresh-button" type="button">Refresh session</button>
-              </div>
-              <p class="status" id="status-copy" data-tone="warn">Loading session before the first workflow run.</p>
-            </form>
-          </section>
-
-          <section class="card">
-            <div class="row push">
-              <div>
-                <div class="meta">Saved output</div>
-                <h2 class="title" style="font-size:2rem;margin-top:8px">Current result</h2>
-              </div>
-              <div class="meta" id="result-state">No scan yet</div>
-            </div>
-            <div id="result-shell" style="margin-top:18px">
-              <div class="empty">Run a monetization scan to populate this workspace with a reusable brief.</div>
-            </div>
-          </section>
+        <section class="card hero">
+          <div class="eyebrow">Analyze</div>
+          <h1>Analyze a <span>short</span> YouTube video</h1>
+          <p class="copy" style="margin-top:14px">
+            Paste a public link and optionally steer the model. Each run uses credits from your account.
+          </p>
+          <p class="meta" id="mode-copy" style="margin-top:10px">Loading session…</p>
         </section>
 
-        <aside class="stack">
-          <section class="card">
-            <div class="row push"><div><div class="meta">Account</div><strong>Session visibility</strong></div><div class="meta" id="auth-chip">loading</div></div>
-            <div id="account-grid" class="rail-list" style="margin-top:16px"><div class="empty">Loading account status.</div></div>
-          </section>
-          <section class="card">
-            <div class="meta">Onboarding</div>
-            <strong style="display:block;margin-top:8px">Next best action</strong>
-            <p class="rail-text" id="onboarding-copy" style="margin-top:10px">Preparing the checklist for this environment.</p>
-            <div id="checklist" class="rail-list" style="margin-top:12px"></div>
-          </section>
-          <section class="card">
-            <div class="meta">Connectors</div>
-            <strong style="display:block;margin-top:8px">Endpoint visibility</strong>
-            <div id="endpoint-list" class="rail-list" style="margin-top:12px"><div class="empty">Loading endpoints.</div></div>
-          </section>
-          <section class="card">
-            <div class="meta">Programmatic access</div>
-            <strong style="display:block;margin-top:8px">API keys</strong>
-            <label style="margin-top:12px">
-              <span class="label">Key label</span>
-              <input id="api-key-label" type="text" maxlength="80" placeholder="Studio workflow" />
-            </label>
-            <div class="actions">
-              <button class="button" id="create-api-key-button" type="button">Create API key</button>
-            </div>
-            <p class="status" id="api-key-status" data-tone="warn">Create a key for future non-MCP programmatic access.</p>
-            <div id="api-key-created" class="rail-list" style="margin-top:12px"></div>
-            <div id="api-key-list" class="rail-list" style="margin-top:12px"><div class="empty">No API keys created yet.</div></div>
-          </section>
-          <section class="card">
-            <div class="meta">Activity</div>
-            <strong style="display:block;margin-top:8px">Recent usage</strong>
-            <div id="activity-list" class="rail-list" style="margin-top:12px"><div class="empty">No usage events yet.</div></div>
-          </section>
-          <section class="card">
-            <div class="meta">History</div>
-            <strong style="display:block;margin-top:8px">Saved scans</strong>
-            <div id="run-list" class="rail-list" style="margin-top:12px"><div class="empty">No workflow runs saved yet.</div></div>
-          </section>
-        </aside>
+        <form class="signin is-hidden stack card" id="signin-form">
+          <p class="copy" id="signin-copy">Sign in to continue.</p>
+          <div class="actions">
+            <button class="button" type="button" id="oauth-signin-button">Continue with OAuth</button>
+            <button class="ghost" type="button" id="signout-button">Clear token</button>
+          </div>
+          <label>
+            <span class="label">Manual token (advanced)</span>
+            <textarea
+              id="access-token"
+              placeholder="Only if you cannot use OAuth. Token is stored for requests but not shown here after sign-in."
+              spellcheck="false"
+              autocomplete="off"
+            ></textarea>
+          </label>
+          <div class="actions">
+            <button class="ghost" type="submit">Save manual token</button>
+          </div>
+        </form>
+
+        <form class="card stack" id="analyze-form">
+          <label>
+            <span class="label">YouTube URL</span>
+            <input id="youtube-url" name="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…" required />
+          </label>
+          <label>
+            <span class="label">Your prompt (optional)</span>
+            <textarea
+              id="analysis-prompt"
+              name="analysisPrompt"
+              placeholder="e.g. Focus on actionable takeaways for a beginner, or summarize arguments for and against the main claim."
+            ></textarea>
+          </label>
+          <div class="actions">
+            <button class="button" id="analyze-button" type="submit">Analyze video</button>
+            <button class="ghost" id="refresh-button" type="button">Refresh session</button>
+          </div>
+          <p class="status" id="status-copy" data-tone="warn"></p>
+        </form>
+
+        <section class="card stack">
+          <div class="row" style="justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+            <strong style="font-family:Instrument Serif,Georgia,serif;font-size:1.35rem;font-weight:400">Result</strong>
+            <span class="meta" id="result-meta">—</span>
+          </div>
+          <div id="result-shell" style="margin-top:14px">
+            <div class="empty">Run an analysis to see summary, topics, and key moments here.</div>
+          </div>
+        </section>
+
+        <p class="footer-links">
+          <span>Need automation?</span>
+          <a href="/docs/api">API reference</a>
+          <span>·</span>
+          <a href="/api/v1/analyze/short">POST /api/v1/analyze/short</a>
+        </p>
       </main>
     </div>
 
@@ -199,39 +139,24 @@
       const pkceVerifierKey = "youtubeAnalyzer.pkceVerifier";
       const pkceStateKey = "youtubeAnalyzer.pkceState";
       const dom = {
-        modeLabel: document.getElementById("mode-label"),
         modeCopy: document.getElementById("mode-copy"),
         signinForm: document.getElementById("signin-form"),
         signinCopy: document.getElementById("signin-copy"),
         oauthSigninButton: document.getElementById("oauth-signin-button"),
         accessToken: document.getElementById("access-token"),
         signoutButton: document.getElementById("signout-button"),
-        scanForm: document.getElementById("scan-form"),
+        analyzeForm: document.getElementById("analyze-form"),
         youtubeUrl: document.getElementById("youtube-url"),
-        focus: document.getElementById("focus"),
-        startOffset: document.getElementById("start-offset"),
-        endOffset: document.getElementById("end-offset"),
-        scanButton: document.getElementById("scan-button"),
+        analysisPrompt: document.getElementById("analysis-prompt"),
+        analyzeButton: document.getElementById("analyze-button"),
         refreshButton: document.getElementById("refresh-button"),
         statusCopy: document.getElementById("status-copy"),
-        resultState: document.getElementById("result-state"),
+        resultMeta: document.getElementById("result-meta"),
         resultShell: document.getElementById("result-shell"),
-        authChip: document.getElementById("auth-chip"),
-        accountGrid: document.getElementById("account-grid"),
-        onboardingCopy: document.getElementById("onboarding-copy"),
-        checklist: document.getElementById("checklist"),
-        endpointList: document.getElementById("endpoint-list"),
-        apiKeyLabel: document.getElementById("api-key-label"),
-        createApiKeyButton: document.getElementById("create-api-key-button"),
-        apiKeyStatus: document.getElementById("api-key-status"),
-        apiKeyCreated: document.getElementById("api-key-created"),
-        apiKeyList: document.getElementById("api-key-list"),
-        activityList: document.getElementById("activity-list"),
-        runList: document.getElementById("run-list"),
+        creditBanner: document.getElementById("credit-banner"),
       };
 
       let sessionState = null;
-      let currentRun = null;
 
       const escapeHtml = (value) => String(value)
         .replaceAll("&", "&amp;")
@@ -247,11 +172,6 @@
       function setStatus(message, tone = "warn") {
         dom.statusCopy.textContent = message;
         dom.statusCopy.dataset.tone = tone;
-      }
-
-      function setApiKeyStatus(message, tone = "warn") {
-        dom.apiKeyStatus.textContent = message;
-        dom.apiKeyStatus.dataset.tone = tone;
       }
 
       function base64UrlEncode(input) {
@@ -288,12 +208,80 @@
         return { response, payload };
       }
 
-      function renderList(target, items, emptyText, formatter) {
-        if (!items || !items.length) {
-          target.innerHTML = `<div class="empty">${emptyText}</div>`;
+      function updateCreditBanner(payload) {
+        const bal = payload.account.creditBalance;
+        const included = payload.account.entitlements?.monthlyIncludedCredits;
+        dom.creditBanner.style.display = "block";
+        if (bal === 0) {
+          dom.creditBanner.dataset.tone = "warn";
+          dom.creditBanner.innerHTML =
+            "<strong>No credits left.</strong> Add credits from the admin console or ask your operator, then refresh.";
           return;
         }
-        target.innerHTML = items.map((item) => `<div class="entry">${formatter(item)}</div>`).join("");
+        if (included != null && bal <= Math.max(1, Math.floor(included * 0.2))) {
+          dom.creditBanner.dataset.tone = "warn";
+          dom.creditBanner.innerHTML = `<strong>Low balance.</strong> You have <strong>${bal}</strong> credit${bal === 1 ? "" : "s"} remaining (plan allowance reference: ${included}/month).`;
+          return;
+        }
+        dom.creditBanner.dataset.tone = "ok";
+        dom.creditBanner.innerHTML = `<strong>Ready.</strong> Balance: <strong>${bal}</strong> credit${bal === 1 ? "" : "s"}.`;
+      }
+
+      function listItems(value) {
+        if (!Array.isArray(value) || !value.length) {
+          return "<li>No items.</li>";
+        }
+        return value
+          .map((item) => {
+            if (typeof item === "string") {
+              return `<li>${escapeHtml(item)}</li>`;
+            }
+            if (item && typeof item === "object" && "timestamp" in item) {
+              const t = escapeHtml(String(item.timestamp ?? ""));
+              const title = escapeHtml(String(item.title ?? ""));
+              const detail = escapeHtml(String(item.detail ?? ""));
+              return `<li><strong>${t}</strong> — ${title}${detail ? `<br /><span style="opacity:.85">${detail}</span>` : ""}</li>`;
+            }
+            return `<li>${escapeHtml(JSON.stringify(item))}</li>`;
+          })
+          .join("");
+      }
+
+      function renderShortResult(result) {
+        const analysis = result?.analysis && typeof result.analysis === "object" ? result.analysis : {};
+        const summary = typeof analysis.summary === "string" ? analysis.summary.trim() : "";
+        const lang = typeof analysis.detectedLanguage === "string" ? analysis.detectedLanguage : "";
+        dom.resultMeta.textContent = [result?.model, lang ? `lang: ${lang}` : ""].filter(Boolean).join(" · ") || "—";
+        dom.resultShell.innerHTML = `
+          <div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <span class="hint">${escapeHtml(result?.normalizedYoutubeUrl || result?.youtubeUrl || "")}</span>
+          </div>
+          ${summary ? `<div class="result-block"><div class="meta">Summary</div><p class="copy" style="margin-top:8px;color:var(--text)">${escapeHtml(summary)}</p></div>` : ""}
+          <div class="result-block">
+            <div class="meta">Topics</div>
+            <ul style="margin-top:8px">${listItems(analysis.topics)}</ul>
+          </div>
+          <div class="result-block">
+            <div class="meta">Key moments</div>
+            <ul style="margin-top:8px">${listItems(analysis.keyMoments)}</ul>
+          </div>
+          <div class="result-block">
+            <div class="meta">Notable quotes</div>
+            <ul style="margin-top:8px">${listItems(analysis.notableQuotes)}</ul>
+          </div>
+          <div class="result-block">
+            <div class="meta">Action items</div>
+            <ul style="margin-top:8px">${listItems(analysis.actionItems)}</ul>
+          </div>
+          <div class="result-block">
+            <div class="meta">Safety / accuracy notes</div>
+            <ul style="margin-top:8px">${listItems(analysis.safetyOrAccuracyNotes)}</ul>
+          </div>
+          <div class="result-block">
+            <div class="meta">Full JSON</div>
+            <pre class="mono" style="margin-top:8px">${escapeHtml(JSON.stringify(analysis, null, 2))}</pre>
+          </div>
+        `;
       }
 
       function renderSession(payload) {
@@ -301,135 +289,53 @@
         dom.signinForm.classList.toggle("is-hidden", payload.auth.mode === "local");
         dom.oauthSigninButton.style.display = payload.auth.browserSignin?.enabled ? "inline-flex" : "none";
         dom.signinCopy.textContent = payload.auth.browserSignin?.enabled
-          ? "Continue with OAuth for a browser-native sign-in flow, or paste a bearer token manually."
-          : "Paste a bearer token for protected deployments.";
-        dom.modeLabel.textContent =
+          ? "Sign in with OAuth, or paste a bearer token."
+          : "Paste a bearer token for this deployment.";
+
+        const modeLabel =
           payload.auth.mode === "local"
-            ? "Local browser mode"
+            ? "Local mode"
             : payload.auth.mode === "api_key"
-              ? "API key mode"
-              : "Protected remote mode";
-        dom.modeCopy.textContent = payload.auth.mode === "local"
-          ? "OAuth is disabled here, so the app keeps a stable local account for onboarding, credits, and saved runs."
-          : payload.auth.mode === "api_key"
-            ? "This session is using an API key instead of a bearer token, which makes the web APIs scriptable."
-            : "This deployment expects a bearer token. The same account context now powers the web shell and the premium MCP connector.";
-        dom.authChip.textContent = payload.auth.mode === "local" ? "local" : payload.auth.mode;
+              ? "API key session"
+              : "Signed in";
+        dom.modeCopy.textContent = `${modeLabel} · Plan ${payload.account.plan} · Credits ${payload.account.creditBalance}`;
 
-        dom.accountGrid.innerHTML = `
-          <div class="entry"><div class="meta">Credits</div><strong style="color:${payload.account.creditBalance > 0 ? "var(--good)" : "var(--text)"}">${escapeHtml(payload.account.creditBalance)}</strong></div>
-          <div class="entry"><div class="meta">Plan</div><strong>${escapeHtml(payload.account.plan)}</strong></div>
-          <div class="entry"><div class="meta">Status</div><strong>${escapeHtml(payload.account.status)}</strong></div>
-          <div class="entry"><div class="meta">Account ID</div><p>${escapeHtml(payload.account.accountId)}</p></div>
-        `;
-
-        dom.onboardingCopy.textContent = payload.onboarding.nextAction;
-        renderList(dom.checklist, payload.onboarding.checklist, "No onboarding steps.", (item) => `<strong>${escapeHtml(item)}</strong>`);
-        renderList(dom.endpointList, [
-          { title: "Web app", value: payload.endpoints.appUrl, note: "Primary app surface" },
-          { title: "MCP endpoint", value: payload.endpoints.mcpUrl, note: "Premium connector path" },
-          { title: "Protected resource metadata", value: payload.endpoints.protectedResourceMetadataUrl, note: "OAuth discovery" },
-          { title: "API keys", value: payload.endpoints.apiKeys, note: "Programmatic access for non-MCP clients" },
-        ], "No endpoints.", (item) => `<strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.note)}</p><p><code>${escapeHtml(item.value)}</code></p>`);
-        renderApiKeys(payload.apiKeys || []);
-        renderList(dom.activityList, payload.recentUsageEvents || [], "No usage events yet.", (item) => `<strong>${escapeHtml(item.kind)}</strong><p>${escapeHtml(new Date(item.occurredAt).toLocaleString())}</p>`);
-        renderRuns(payload.recentRuns || []);
-        setStatus("Session loaded. You can run a monetization scan now.", "good");
-        setApiKeyStatus("Create a key for scripts, internal tools, or future HTTP API access.", "warn");
-
-        if (!currentRun && payload.recentRuns && payload.recentRuns.length) {
-          currentRun = payload.recentRuns[0];
-          renderCurrentRun(currentRun);
-        }
-      }
-
-      function renderApiKeys(apiKeys) {
-        dom.apiKeyCreated.innerHTML = "";
-        renderList(dom.apiKeyList, apiKeys, "No API keys created yet.", (apiKey) => `
-          <strong>${escapeHtml(apiKey.label)}</strong>
-          <p>${escapeHtml(apiKey.prefix)}...</p>
-          <p>${apiKey.lastUsedAt ? escapeHtml(new Date(apiKey.lastUsedAt).toLocaleString()) : "Never used"}</p>
-          <button class="ghost" type="button" data-api-key-id="${escapeHtml(apiKey.keyId)}">${apiKey.revokedAt ? "Revoked" : "Revoke key"}</button>
-        `);
-
-        dom.apiKeyList.querySelectorAll("[data-api-key-id]").forEach((button) => {
-          if (button.textContent === "Revoked") {
-            button.disabled = true;
-            return;
-          }
-
-          button.addEventListener("click", async () => {
-            await revokeApiKey(button.dataset.apiKeyId);
-          });
-        });
-      }
-
-      function renderRuns(runs) {
-        renderList(dom.runList, runs, "No workflow runs saved yet.", (run) => `
-          <strong>${escapeHtml(run.videoTitle || run.workflowLabel)}</strong>
-          <p>${escapeHtml(run.summary || run.youtubeUrl)}</p>
-          <p>${escapeHtml(new Date(run.createdAt).toLocaleString())}</p>
-          <button class="ghost" type="button" data-run-id="${escapeHtml(run.runId)}">Open result</button>
-        `);
-        dom.runList.querySelectorAll("[data-run-id]").forEach((button) => {
-          button.addEventListener("click", () => {
-            const run = (sessionState?.recentRuns || []).find((entry) => entry.runId === button.dataset.runId);
-            if (run) {
-              currentRun = run;
-              renderCurrentRun(run);
-            }
-          });
-        });
-      }
-
-      function renderCurrentRun(run) {
-        const output = run.output || {};
-        const analysis = output.analysis || {};
-        const list = (value) => Array.isArray(value) && value.length ? value.map((item) => `<li>${escapeHtml(typeof item === "string" ? item : JSON.stringify(item))}</li>`).join("") : "<li>No items returned.</li>";
-        dom.resultState.textContent = run.status === "failed" ? "Last run failed" : "Saved output ready";
-        dom.resultShell.innerHTML = `
-          <div class="row">
-            <span class="pill">${escapeHtml(run.workflowLabel)}</span>
-            <span class="pill">${escapeHtml(output.analysis?.monetizationReadiness || "n/a")}</span>
-            <span class="pill">${escapeHtml(output.model || "model unavailable")}</span>
-          </div>
-          <div class="entry">
-            <div class="meta">Video</div>
-            <strong>${escapeHtml(run.videoTitle || "Saved scan")}</strong>
-            <p>${escapeHtml(run.summary || run.error?.message || "No summary available.")}</p>
-          </div>
-          ${run.status === "failed" ? `
-            <div class="entry"><div class="meta">Failure</div><strong>${escapeHtml(run.error?.code || "WORKFLOW_FAILED")}</strong><p>${escapeHtml(run.error?.message || "Unknown workflow failure.")}</p></div>
-          ` : `
-            <div class="split" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-              <div class="entry"><div class="meta">Revenue angles</div><ul>${list(analysis.revenueAngles)}</ul></div>
-              <div class="entry"><div class="meta">Affiliate opportunities</div><ul>${list(analysis.affiliateOpportunities)}</ul></div>
-              <div class="entry"><div class="meta">Sponsor segments</div><ul>${list(analysis.sponsorSegments)}</ul></div>
-              <div class="entry"><div class="meta">CTA moments</div><ul>${list(analysis.ctaMoments)}</ul></div>
-              <div class="entry"><div class="meta">Repurposing hooks</div><ul>${list(analysis.repurposingHooks)}</ul></div>
-              <div class="entry"><div class="meta">Next actions</div><ul>${list(analysis.nextActions)}</ul></div>
-            </div>
-            <div class="entry"><div class="meta">Risks</div><ul>${list(analysis.risks)}</ul></div>
-          `}
-        `;
+        updateCreditBanner(payload);
+        setStatus("Signed in. You can analyze a video.", "good");
       }
 
       function handleAuthRequirement(payload) {
         sessionState = payload;
+        dom.creditBanner.style.display = "none";
         dom.signinForm.classList.remove("is-hidden");
-        dom.modeLabel.textContent = "Bearer token required";
-        dom.oauthSigninButton.style.display = payload?.auth?.browserSignin?.enabled ? "inline-flex" : "none";
-        dom.signinCopy.textContent = payload?.auth?.browserSignin?.enabled
-          ? "Use browser OAuth or paste a bearer token manually."
-          : "Paste a bearer token to use the app shell.";
+        const browserOAuthEnabled = payload?.auth?.browserSignin?.enabled === true;
+
+        if (payload?.auth?.configured === false) {
+          dom.oauthSigninButton.style.display = browserOAuthEnabled ? "inline-flex" : "none";
+          const msg =
+            payload?.error?.message ||
+            "OAuth is not fully configured on the server. Set OAUTH_ENABLED=true and all required OAUTH_* / OAUTH_WEB_* variables, or use ALLOW_UNAUTHENTICATED_HOSTED_DEV=true for local dev.";
+          dom.signinCopy.textContent = msg;
+          dom.modeCopy.textContent = "Server configuration";
+          setStatus(msg, "bad");
+          return;
+        }
+
+        dom.oauthSigninButton.style.display = browserOAuthEnabled ? "inline-flex" : "none";
+        dom.signinCopy.textContent = browserOAuthEnabled
+          ? "Use OAuth or paste a bearer token."
+          : "Paste a bearer token to use this app.";
         dom.modeCopy.textContent = payload?.auth?.requiredScope
-          ? `This deployment requires a bearer token with scope ${payload.auth.requiredScope}.`
-          : "This deployment requires a bearer token to use the app shell.";
-        dom.authChip.textContent = "signin";
-        setStatus(payload?.error?.message || "Sign in to load account and workflow history.", "warn");
+          ? `Authentication required (scope: ${payload.auth.requiredScope}).`
+          : "Authentication required.";
+        setStatus(payload?.error?.message || "Sign in to analyze videos.", "warn");
       }
 
       async function beginBrowserSignin(config) {
+        if (!config?.authorizationUrl) {
+          setStatus("OAuth authorize URL is not configured (check OAUTH_WEB_AUTHORIZATION_URL).", "bad");
+          return;
+        }
         const verifier = createRandomString(48);
         const state = createRandomString(24);
         const challenge = await createCodeChallenge(verifier);
@@ -479,7 +385,7 @@
           return true;
         }
 
-        setStatus("Completing browser OAuth sign-in.", "warn");
+        setStatus("Completing sign-in…", "warn");
         const response = await fetch(config.tokenUrl, {
           method: "POST",
           headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -504,8 +410,8 @@
         }
 
         setStoredToken(tokenPayload.access_token);
-        dom.accessToken.value = tokenPayload.access_token;
-        setStatus("Browser OAuth sign-in completed.", "good");
+        dom.accessToken.value = "";
+        setStatus("Signed in.", "good");
         return true;
       }
 
@@ -522,100 +428,63 @@
           handleAuthRequirement(payload);
           return;
         }
+        if (response.status === 503 && payload?.error?.code === "HOSTED_AUTH_CONFIGURATION_INVALID") {
+          handleAuthRequirement(payload);
+          return;
+        }
         if (!response.ok) {
-          setStatus("Failed to load app session.", "bad");
+          const msg =
+            typeof payload === "object" && payload?.error?.message
+              ? payload.error.message
+              : `Could not load session (HTTP ${response.status}).`;
+          setStatus(msg, "bad");
           return;
         }
         renderSession(payload);
       }
 
-      async function loadRuns() {
-        const { response, payload } = await fetchJson("/api/web/runs", { method: "GET" });
-        if (response.ok && sessionState) {
-          sessionState.recentRuns = payload.runs || [];
-          renderRuns(sessionState.recentRuns);
-        }
-      }
-
-      async function loadApiKeys() {
-        const { response, payload } = await fetchJson("/api/web/api-keys", { method: "GET" });
-        if (response.ok && sessionState) {
-          sessionState.apiKeys = payload.apiKeys || [];
-          renderApiKeys(sessionState.apiKeys);
-        }
-      }
-
-      async function createApiKey() {
-        dom.createApiKeyButton.disabled = true;
-        setApiKeyStatus("Creating API key.", "warn");
-        const { response, payload } = await fetchJson("/api/web/api-keys", {
-          method: "POST",
-          body: JSON.stringify({
-            label: dom.apiKeyLabel.value.trim() || undefined,
-          }),
-        });
-        dom.createApiKeyButton.disabled = false;
-
-        if (!response.ok) {
-          setApiKeyStatus(payload?.error?.message || "Failed to create API key.", "bad");
-          return;
-        }
-
-        dom.apiKeyCreated.innerHTML = `
-          <div class="entry">
-            <div class="meta">Copy this key now</div>
-            <strong>${escapeHtml(payload.record.label)}</strong>
-            <p><code>${escapeHtml(payload.plaintextKey)}</code></p>
-          </div>
-        `;
-        dom.apiKeyLabel.value = "";
-        setApiKeyStatus("API key created. This secret is only shown once.", "good");
-        await loadSession();
-        await loadApiKeys();
-      }
-
-      async function revokeApiKey(keyId) {
-        const { response, payload } = await fetchJson(`/api/web/api-keys?keyId=${encodeURIComponent(keyId)}`, {
-          method: "DELETE",
-        });
-        if (!response.ok || !payload.revoked) {
-          setApiKeyStatus(payload?.error?.message || "Failed to revoke API key.", "bad");
-          return;
-        }
-
-        setApiKeyStatus("API key revoked.", "good");
-        await loadSession();
-        await loadApiKeys();
-      }
-
-      async function submitScan(event) {
+      async function submitAnalyze(event) {
         event.preventDefault();
-        dom.scanButton.disabled = true;
-        setStatus("Running monetization scan. This can take a moment.", "warn");
-        const { response, payload } = await fetchJson("/api/web/monetization-scan", {
+        dom.analyzeButton.disabled = true;
+        setStatus("Analyzing video… this can take a minute.", "warn");
+        const body = { youtubeUrl: dom.youtubeUrl.value.trim() };
+        const prompt = dom.analysisPrompt.value.trim();
+        if (prompt) {
+          body.analysisPrompt = prompt;
+        }
+        const { response, payload } = await fetchJson("/api/v1/analyze/short", {
           method: "POST",
-          body: JSON.stringify({
-            youtubeUrl: dom.youtubeUrl.value.trim(),
-            focus: dom.focus.value.trim() || undefined,
-            startOffsetSeconds: dom.startOffset.value ? Number(dom.startOffset.value) : undefined,
-            endOffsetSeconds: dom.endOffset.value ? Number(dom.endOffset.value) : undefined,
-          }),
+          body: JSON.stringify(body),
         });
-        dom.scanButton.disabled = false;
+        dom.analyzeButton.disabled = false;
+
         if (response.status === 401) {
           handleAuthRequirement(payload);
           return;
         }
-        if (!response.ok) {
-          setStatus(payload?.error?.message || "Workflow failed.", "bad");
-          await loadSession();
+        if (response.status === 402) {
+          const req = payload?.error?.details?.requiredCredits;
+          const bal = payload?.error?.details?.creditBalance;
+          const extra = req != null && bal != null ? ` (${bal} available, ${req} required)` : "";
+          setStatus((payload?.error?.message || "Not enough credits.") + extra, "bad");
+          if (payload?.account) {
+            updateCreditBanner({ account: payload.account });
+          } else {
+            await loadSession();
+          }
           return;
         }
-        currentRun = payload.run;
-        renderCurrentRun(currentRun);
-        setStatus("Monetization scan completed and saved to history.", "good");
+        if (!response.ok) {
+          setStatus(payload?.error?.message || "Analysis failed.", "bad");
+          if (payload?.account) {
+            updateCreditBanner({ account: payload.account });
+          }
+          return;
+        }
+
+        renderShortResult(payload.result);
+        setStatus("Done. Credits updated.", "good");
         await loadSession();
-        await loadRuns();
       }
 
       dom.signinForm.addEventListener("submit", async (event) => {
@@ -626,24 +495,20 @@
       dom.oauthSigninButton.addEventListener("click", async () => {
         const browserSignin = sessionState?.auth?.browserSignin;
         if (!browserSignin?.enabled) {
-          setStatus("Browser OAuth sign-in is not configured for this deployment.", "bad");
+          setStatus("OAuth is not configured for this deployment.", "bad");
           return;
         }
-
         await beginBrowserSignin(browserSignin);
       });
       dom.signoutButton.addEventListener("click", async () => {
         setStoredToken("");
         dom.accessToken.value = "";
-        currentRun = null;
-        dom.resultState.textContent = "No scan yet";
-        dom.resultShell.innerHTML = `<div class="empty">Sign back in or switch to local mode to restore workflow history.</div>`;
+        dom.resultMeta.textContent = "—";
+        dom.resultShell.innerHTML = `<div class="empty">Run an analysis to see summary, topics, and key moments here.</div>`;
         await loadSession();
       });
-      dom.createApiKeyButton.addEventListener("click", createApiKey);
-      dom.scanForm.addEventListener("submit", submitScan);
+      dom.analyzeForm.addEventListener("submit", submitAnalyze);
       dom.refreshButton.addEventListener("click", loadSession);
-      dom.accessToken.value = getStoredToken();
       void loadSession();
     </script>
   </body>

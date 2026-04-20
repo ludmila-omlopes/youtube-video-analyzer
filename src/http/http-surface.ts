@@ -11,14 +11,27 @@ import {
   handleApiShortAnalysisRequest,
   isApiLongJobStatusPath,
 } from "./api.js";
-import { handleProtectedMcpHttpRequest } from "./handle-protected-mcp-request.js";
 import { handleProtectedResourceMetadataRequest } from "./handle-protected-resource-metadata-request.js";
+import {
+  handleAdminAccountGetHttpRequest,
+  handleAdminAccountGrantCreditsHttpRequest,
+  handleAdminAccountPlanHttpRequest,
+  handleAdminAccountsListRequest,
+  handleAdminConsolePageRequest,
+} from "./admin-http.js";
+import {
+  handleHostedLoginStartRequest,
+  handleHostedLogoutRequest,
+  handleHostedOAuthCallbackRequest,
+  handleLegacyAppRedirectRequest,
+  oauthCallbackPathMatches,
+} from "./oauth-hosted-login.js";
+import { renderApiDocsPageHtml } from "./render-api-docs-html.js";
 import {
   handleApiKeysCreateRequest,
   handleApiKeysListRequest,
   handleApiKeysRevokeRequest,
   handleMonetizationScanRequest,
-  handleWebAppPageRequest,
   handleWebSessionRequest,
   handleWorkflowRunsRequest,
 } from "./web-app.js";
@@ -26,9 +39,19 @@ import {
 export type HttpSurfaceRouteHandler = (request: Request) => Promise<Response>;
 
 const LANDING_PAGE_PATH = fileURLToPath(new URL("../../public/index.html", import.meta.url));
-const LANDING_PAGE_FALLBACK = `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>YouTube Analyzer</title></head><body><p>YouTube Analyzer is live at <code>/api/mcp</code>.</p></body></html>`;
+const LANDING_PAGE_FALLBACK = `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>YouTube Video Analyzer</title></head><body><p>YouTube Video Analyzer is live. See <code>/docs/api</code> for the HTTP API.</p></body></html>`;
+
+const DASHBOARD_PAGE_PATH = fileURLToPath(new URL("../../public/dashboard.html", import.meta.url));
+const DASHBOARD_PAGE_FALLBACK = `<!doctype html><html lang="en"><head><meta charset="utf-8" /><title>Account</title></head><body><p>Dashboard unavailable.</p></body></html>`;
+
+const API_DOC_MD_PATH = fileURLToPath(new URL("../../docs/API.md", import.meta.url));
+const API_DOC_FALLBACK =
+  "# Hosted HTTP API\n\nDocumentation file `docs/API.md` was not found on this server. See the package or repository copy.\n";
 
 let landingPageHtmlPromise: Promise<string> | undefined;
+let dashboardPageHtmlPromise: Promise<string> | undefined;
+let apiDocMarkdownPromise: Promise<string> | undefined;
+let apiDocHtmlPagePromise: Promise<string> | undefined;
 
 export function methodNotAllowed(allowed: string[]): Response {
   return new Response("Method Not Allowed", {
@@ -61,8 +84,28 @@ async function loadLandingPageHtml(): Promise<string> {
   return landingPageHtmlPromise;
 }
 
-export async function handleMcpHttpSurfaceRequest(request: Request): Promise<Response> {
-  return handleProtectedMcpHttpRequest(request);
+async function loadDashboardPageHtml(): Promise<string> {
+  if (!dashboardPageHtmlPromise) {
+    dashboardPageHtmlPromise = readFile(DASHBOARD_PAGE_PATH, "utf8").catch(() => DASHBOARD_PAGE_FALLBACK);
+  }
+
+  return dashboardPageHtmlPromise;
+}
+
+async function loadApiDocMarkdown(): Promise<string> {
+  if (!apiDocMarkdownPromise) {
+    apiDocMarkdownPromise = readFile(API_DOC_MD_PATH, "utf8").catch(() => API_DOC_FALLBACK);
+  }
+
+  return apiDocMarkdownPromise;
+}
+
+async function loadApiDocHtmlPage(): Promise<string> {
+  if (!apiDocHtmlPagePromise) {
+    apiDocHtmlPagePromise = loadApiDocMarkdown().then((md) => renderApiDocsPageHtml(md));
+  }
+
+  return apiDocHtmlPagePromise;
 }
 
 export async function handleProtectedResourceMetadataHttpSurfaceRequest(request: Request): Promise<Response> {
@@ -78,12 +121,35 @@ export async function handleRootHttpSurfaceRequest(_request: Request): Promise<R
   });
 }
 
-export async function handleHealthCheckHttpSurfaceRequest(): Promise<Response> {
-  return healthCheck();
+export async function handleDashboardHttpSurfaceRequest(_request: Request): Promise<Response> {
+  return new Response(await loadDashboardPageHtml(), {
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "text/html; charset=utf-8",
+    },
+  });
 }
 
-export async function handleWebAppHttpSurfaceRequest(request: Request): Promise<Response> {
-  return handleWebAppPageRequest();
+export async function handleDocsApiHtmlSurfaceRequest(_request: Request): Promise<Response> {
+  return new Response(await loadApiDocHtmlPage(), {
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "text/html; charset=utf-8",
+    },
+  });
+}
+
+export async function handleDocsApiRawHttpSurfaceRequest(_request: Request): Promise<Response> {
+  return new Response(await loadApiDocMarkdown(), {
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "text/markdown; charset=utf-8",
+    },
+  });
+}
+
+export async function handleHealthCheckHttpSurfaceRequest(): Promise<Response> {
+  return healthCheck();
 }
 
 export async function handleWebSessionHttpSurfaceRequest(request: Request): Promise<Response> {
@@ -131,14 +197,6 @@ export async function handleApiLongJobStatusHttpSurfaceRequest(request: Request)
 }
 
 export function resolveHttpSurfaceRoute(pathname: string, method: string): HttpSurfaceRouteHandler | Response {
-  if (pathname === "/api/mcp") {
-    if (method === "GET" || method === "POST" || method === "DELETE") {
-      return handleMcpHttpSurfaceRequest;
-    }
-
-    return methodNotAllowed(["GET", "POST", "DELETE"]);
-  }
-
   if (pathname === OAUTH_PROTECTED_RESOURCE_METADATA_PATH) {
     if (method === "GET") {
       return handleProtectedResourceMetadataHttpSurfaceRequest;
@@ -153,6 +211,46 @@ export function resolveHttpSurfaceRoute(pathname: string, method: string): HttpS
     }
 
     return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/docs/api/raw" || pathname === "/docs/api/raw/") {
+    if (method === "GET") {
+      return handleDocsApiRawHttpSurfaceRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/docs/api" || pathname === "/docs/api/") {
+    if (method === "GET") {
+      return handleDocsApiHtmlSurfaceRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
+  }
+
+  if (oauthCallbackPathMatches(pathname)) {
+    if (method === "GET") {
+      return handleHostedOAuthCallbackRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/login" || pathname === "/login/") {
+    if (method === "GET") {
+      return handleHostedLoginStartRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/logout" || pathname === "/logout/") {
+    if (method === "GET" || method === "POST") {
+      return handleHostedLogoutRequest;
+    }
+
+    return methodNotAllowed(["GET", "POST"]);
   }
 
   if (pathname === "/api/web/session") {
@@ -235,12 +333,60 @@ export function resolveHttpSurfaceRoute(pathname: string, method: string): HttpS
     return methodNotAllowed(["GET"]);
   }
 
-  if (pathname === "/app" || pathname === "/app/") {
+  if (pathname === "/dashboard" || pathname === "/dashboard/") {
     if (method === "GET") {
-      return handleWebAppHttpSurfaceRequest;
+      return handleDashboardHttpSurfaceRequest;
     }
 
     return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/app" || pathname === "/app/") {
+    if (method === "GET") {
+      return handleLegacyAppRedirectRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/admin/console" || pathname === "/admin/console/") {
+    if (method === "GET") {
+      return handleAdminConsolePageRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/admin/api/accounts") {
+    if (method === "GET") {
+      return handleAdminAccountsListRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/admin/api/account") {
+    if (method === "GET") {
+      return handleAdminAccountGetHttpRequest;
+    }
+
+    return methodNotAllowed(["GET"]);
+  }
+
+  if (pathname === "/admin/api/account/plan") {
+    if (method === "POST") {
+      return handleAdminAccountPlanHttpRequest;
+    }
+
+    return methodNotAllowed(["POST"]);
+  }
+
+  if (pathname === "/admin/api/account/grant-credits") {
+    if (method === "POST") {
+      return handleAdminAccountGrantCreditsHttpRequest;
+    }
+
+    return methodNotAllowed(["POST"]);
   }
 
   if (pathname === "/" || pathname === "") {

@@ -17,20 +17,8 @@ function run(command, args) {
 }
 
 const packageJson = readJson(new URL("../package.json", import.meta.url));
-const serverJson = readJson(new URL("../server.json", import.meta.url));
 
 console.log(`release-check: package version ${packageJson.version}`);
-console.log(`release-check: server.json version ${serverJson.version}`);
-
-if (packageJson.version === serverJson.version) {
-  console.log(
-    "release-check: package.json and server.json versions match. This is correct if you intend to republish MCP Registry metadata too."
-  );
-} else {
-  console.log(
-    "release-check: package.json and server.json versions differ. This is expected for an npm-only release that should not update the MCP Registry entry."
-  );
-}
 
 run("npm", ["run", "test"]);
 run("npm", ["pack", "--dry-run"]);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createAdaptiveBatchPlan, createAdaptiveChunkPlan } from "../lib/chunk-planner.js";
+import { createAdaptiveBatchPlan, createAdaptiveChunkPlan } from "@ludylops/video-analysis-core";
 
 export async function run(): Promise<void> {
   const singleChunkPlan = await createAdaptiveChunkPlan({

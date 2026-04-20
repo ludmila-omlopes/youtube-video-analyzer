@@ -96,6 +96,13 @@ function toAccessTokenValidationError(error: unknown): AccessTokenValidationErro
     return new AccessTokenValidationError("Access token signature is invalid.", "TOKEN_INVALID");
   }
 
+  if (error instanceof joseErrors.JWSInvalid || error instanceof joseErrors.JWTInvalid) {
+    return new AccessTokenValidationError(
+      "Access token is not a JWT this server can verify. For browser sign-in, set OAUTH_WEB_AUDIENCE to the same value as OAUTH_AUDIENCE (your API identifier) so the issuer returns a signed JWT access token, or paste a JWT manually.",
+      "TOKEN_INVALID"
+    );
+  }
+
   return new AccessTokenValidationError("Access token is invalid.", "TOKEN_INVALID");
 }
 

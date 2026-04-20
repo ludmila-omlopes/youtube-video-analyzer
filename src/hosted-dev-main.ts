@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 import type { IncomingHttpHeaders } from "node:http";
 import {
   createServer as createHttpServer,
@@ -10,6 +8,7 @@ import {
 import process from "node:process";
 
 import { resolveHttpSurfaceRoute, type HttpSurfaceRouteHandler } from "./http/http-surface.js";
+import { loadAppDotenv } from "./lib/load-dotenv.js";
 import {
   assertHostedRuntimeReady,
   getHostedRuntimeStartupSummary,
@@ -163,6 +162,7 @@ function installShutdownHandlers(server: Server): void {
 }
 
 export async function main(): Promise<void> {
+  loadAppDotenv();
   const hostedRuntimeRole = assertHostedRuntimeReady();
   const { host, port } = getHostedServerConfig();
   const server = createHostedDevServer();
@@ -171,7 +171,10 @@ export async function main(): Promise<void> {
   await new Promise<void>((resolve) => {
     server.listen(port, host, () => {
       console.log(`Hosted HTTP server listening on http://${host}:${port}`);
-      console.log(`MCP endpoint: http://${host}:${port}/api/mcp`);
+      console.log(`Hosted sign-in: http://${host}:${port}/login`);
+      console.log(`Account dashboard: http://${host}:${port}/dashboard`);
+      console.log(`API reference (HTML): http://${host}:${port}/docs/api`);
+      console.log(`API reference (Markdown): http://${host}:${port}/docs/api/raw`);
       if (hostedRuntimeRole) {
         for (const line of getHostedRuntimeStartupSummary()) {
           console.log(line);

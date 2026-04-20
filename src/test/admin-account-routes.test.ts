@@ -14,7 +14,7 @@ import {
 const principal: AuthPrincipal = {
   subject: "google-oauth2|admin-routes-user",
   issuer: "https://issuer.example.com/",
-  audience: "youtube-analyzer-web",
+  audience: "youtube-video-analyzer-web",
   scope: [],
   tokenId: null,
   rawClaims: {},

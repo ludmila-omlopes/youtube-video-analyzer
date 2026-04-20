@@ -3,7 +3,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { createAiClient, uploadVideoFile } from "../dist/lib/gemini.js";
+import { createAiClient, uploadVideoFile } from "@ludylops/video-analysis-core";
 
 const logger = {
   requestId: "upload-smoke",

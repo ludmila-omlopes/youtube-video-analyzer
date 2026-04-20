@@ -1,1 +1,5 @@
-export * from "../youtube-core/video-analysis-service.js";
+export {
+  VideoAnalysisService,
+  applyLongVideoInputRuntimePolicy,
+} from "@ludylops/video-analysis-core";
+export type { VideoAnalysisServiceDeps, VideoAnalysisServiceLike } from "@ludylops/video-analysis-core";

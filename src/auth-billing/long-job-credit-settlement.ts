@@ -1,4 +1,4 @@
-import type { GetLongAnalysisJobToolOutput } from "../youtube-core/index.js";
+import type { GetLongAnalysisJobToolOutput } from "@ludylops/video-analysis-core";
 import type { RemoteAccessStore } from "./remote-access-store.js";
 import type { UsageEventStore } from "./usage-events.js";
 

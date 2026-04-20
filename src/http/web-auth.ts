@@ -14,10 +14,12 @@ import {
   validateAccessToken,
 } from "../auth-billing/index.js";
 
+import { getHostedAccessTokenCookieName, parseCookieHeader } from "./hosted-session-cookie.js";
+
 export const LOCAL_WEB_APP_PRINCIPAL: AuthPrincipal = {
   subject: "local-browser-user",
-  issuer: "local://youtube-analyzer-web",
-  audience: "youtube-analyzer-web",
+  issuer: "local://youtube-video-analyzer-web",
+  audience: "youtube-video-analyzer-web",
   scope: ["web:local"],
   tokenId: null,
   rawClaims: {
@@ -123,6 +125,21 @@ function createWebAuthConfigurationErrorResponse(
   );
 }
 
+export function resolveAuthorizationHeaderFromRequest(request: Request): string | null {
+  const header = request.headers.get("authorization")?.trim();
+  if (header) {
+    return header;
+  }
+
+  const cookies = parseCookieHeader(request.headers.get("cookie"));
+  const token = cookies.get(getHostedAccessTokenCookieName())?.trim();
+  if (token) {
+    return `Bearer ${token}`;
+  }
+
+  return null;
+}
+
 export function resolveBrowserSigninPayload(
   request: Request,
   config: BrowserOAuthClientConfig = getBrowserOAuthClientConfig()
@@ -189,7 +206,7 @@ export async function authenticateWebRequest(
 
   try {
     const principal = await (options.validateBearerToken ?? validateAccessToken)(
-      request.headers.get("authorization"),
+      resolveAuthorizationHeaderFromRequest(request),
       config
     );
     return {

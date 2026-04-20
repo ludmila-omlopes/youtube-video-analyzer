@@ -9,8 +9,8 @@ import {
   getUserConfigPath,
   readUserConfigFile,
   writeUserConfigFile,
-} from "../lib/constants.js";
-import { selectDownloadedVideoFile } from "../lib/youtube.js";
+  selectDownloadedVideoFile,
+} from "@ludylops/video-analysis-core";
 
 export async function run(): Promise<void> {
   assert.equal(

@@ -48,9 +48,16 @@ export type CreditReservationMutation = {
   changed: boolean;
 };
 
+export type ListAccountsOptions = {
+  /** Maximum accounts to return (capped internally). */
+  limit?: number;
+};
+
 export interface RemoteAccessStore {
   upsertAccount(principal: AuthPrincipal): Promise<RemoteAccount>;
   getAccount(accountId: string): Promise<RemoteAccount | null>;
+  /** Sorted by account id. Used for operator consoles; avoid hot paths. */
+  listAccounts(options?: ListAccountsOptions): Promise<RemoteAccount[]>;
   setAccountPlan(accountId: string, plan: RemoteAccountPlan): Promise<RemoteAccount | null>;
   adjustAccountCredits(accountId: string, delta: number): Promise<RemoteAccount | null>;
   grantAccountCredits(accountId: string, credits: number): Promise<RemoteAccount | null>;
@@ -246,6 +253,20 @@ export class InMemoryRemoteAccessStore implements RemoteAccessStore {
 
   async getAccount(accountId: string): Promise<RemoteAccount | null> {
     return this.getAccountSnapshot(accountId);
+  }
+
+  async listAccounts(options?: ListAccountsOptions): Promise<RemoteAccount[]> {
+    const cap = Math.min(Math.max(options?.limit ?? 500, 1), 2000);
+    const ids = [...this.accounts.keys()].sort();
+    const slice = ids.slice(0, cap);
+    const out: RemoteAccount[] = [];
+    for (const id of slice) {
+      const acc = this.getAccountSnapshot(id);
+      if (acc) {
+        out.push(acc);
+      }
+    }
+    return out;
   }
 
   async setAccountPlan(accountId: string, plan: RemoteAccountPlan): Promise<RemoteAccount | null> {
@@ -462,6 +483,42 @@ export class RedisRemoteAccessStore implements RemoteAccessStore {
   async getAccount(accountId: string): Promise<RemoteAccount | null> {
     const raw = readJsonUnknown(await this.redis.get(getAccountKey(accountId)));
     return raw ? normalizeRemoteAccountFromStorage(raw, accountId) : null;
+  }
+
+  async listAccounts(options?: ListAccountsOptions): Promise<RemoteAccount[]> {
+    const cap = Math.min(Math.max(options?.limit ?? 500, 1), 2000);
+    const keys: string[] = [];
+    let cursor = "0";
+    do {
+      const [next, batch] = await this.redis.scan(cursor, "MATCH", `${ACCOUNT_KEY_PREFIX}*`, "COUNT", 200);
+      keys.push(...batch);
+      cursor = next;
+    } while (cursor !== "0");
+
+    const ids = keys
+      .map((key) => (key.startsWith(ACCOUNT_KEY_PREFIX) ? key.slice(ACCOUNT_KEY_PREFIX.length) : ""))
+      .filter(Boolean)
+      .sort()
+      .slice(0, cap);
+
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const pipeline = this.redis.pipeline();
+    for (const id of ids) {
+      pipeline.get(getAccountKey(id));
+    }
+    const results = await pipeline.exec();
+    const out: RemoteAccount[] = [];
+    ids.forEach((id, index) => {
+      const raw = readJsonUnknown(results?.[index]?.[1] as string | null);
+      const acc = raw ? normalizeRemoteAccountFromStorage(raw, id) : null;
+      if (acc) {
+        out.push(acc);
+      }
+    });
+    return out;
   }
 
   async setAccountPlan(accountId: string, plan: RemoteAccountPlan): Promise<RemoteAccount | null> {

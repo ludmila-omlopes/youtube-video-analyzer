@@ -1,5 +1,4 @@
-import type { AnalysisSession } from "../youtube-core/types.js";
-import type { AnalysisSessionStore } from "../youtube-core/session-store.js";
+import type { AnalysisSession, AnalysisSessionStore } from "@ludylops/video-analysis-core";
 import { getPrincipalKey, type AuthPrincipal } from "./principal.js";
 import type { RemoteAccessStore } from "./remote-access-store.js";
 

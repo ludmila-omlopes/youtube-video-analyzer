@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 
-import { buildAudioAnalysisPrompt, buildFollowUpPrompt, buildPrompt } from "../lib/gemini.js";
-import { defaultAnalysisSchema, defaultAudioAnalysisSchema } from "../lib/schemas.js";
+import {
+  buildAudioAnalysisPrompt,
+  buildFollowUpPrompt,
+  buildPrompt,
+  defaultAnalysisSchema,
+  defaultAudioAnalysisSchema,
+} from "@ludylops/video-analysis-core";
 
 export async function run(): Promise<void> {
   const prompt = buildPrompt();

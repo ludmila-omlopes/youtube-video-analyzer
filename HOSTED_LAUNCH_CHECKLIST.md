@@ -6,10 +6,10 @@ This checklist is for releasing the hosted product, not for publishing the npm p
 
 Deploy the services defined in [render.yaml](./render.yaml):
 
-- `youtube-analyzer-mcp` web service
-- `youtube-analyzer-mcp-worker` background worker
-- `youtube-analyzer-mcp-admin` admin dashboard
-- `youtube-analyzer-redis` Key Value / Redis
+- `youtube-video-analyzer` web service
+- `youtube-video-analyzer-worker` background worker
+- `youtube-video-analyzer-admin` admin dashboard
+- `youtube-video-analyzer-redis` Key Value / Redis
 
 All hosted runtimes now validate launch configuration at startup. If a required secret is missing, the process exits early instead of starting in a partially working state.
 
@@ -77,7 +77,7 @@ Run these after Render reports healthy services.
 6. Call `POST /api/v1/analyze/short` and confirm credits settle correctly.
 7. Call `POST /api/v1/analyze/audio` and confirm credits settle correctly.
 8. Call `POST /api/v1/long-jobs`, then poll `GET /api/v1/long-jobs/:jobId` until terminal status.
-9. Connect an MCP client to `/api/mcp` with bearer auth or `Authorization: ApiKey ...`.
+9. Open **`GET /docs/api`** (and optionally **`GET /docs/api/raw`**) and confirm the hosted API reference renders.
 10. Open the admin service and confirm `/admin/queues` loads behind basic auth.
 11. Call `GET /admin/api/account` for a real hosted account.
 12. Call `POST /admin/api/account/plan` and `POST /admin/api/account/grant-credits` to verify beta operations.
@@ -90,7 +90,7 @@ Before inviting external users:
 - Verify trial entitlements and initial credits look correct.
 - Change that account to `builder` or `pro` from the admin API.
 - Grant extra credits manually and confirm the ledger records the event.
-- Verify the same account balance appears consistently in `/app`, `/api/v1/*`, and `/api/mcp`.
+- Verify the same account balance appears consistently in `/app` and `/api/v1/*`.
 - Confirm a failed long job releases its reservation.
 
 ## Launch Decision
@@ -98,7 +98,7 @@ Before inviting external users:
 You are ready for a hosted beta when all of the following are true:
 
 - web, worker, and admin boot cleanly with production secrets
-- `/app`, `/api/v1/*`, and `/api/mcp` all require authenticated access
+- `/app` and `/api/v1/*` require authenticated access (or explicit local-dev bypass only when configured)
 - Redis-backed durability is active for hosted state
 - long jobs complete through the worker and settle credits correctly
 - admin plan changes and credit grants work without direct datastore edits

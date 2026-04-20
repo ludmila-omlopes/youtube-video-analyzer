@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 
-import { DiagnosticError } from "../lib/errors.js";
+import { DiagnosticError } from "@ludylops/video-analysis-core";
 import {
   extractYouTubeVideoId,
   fetchYouTubeVideoMetadata,
   getRequiredYouTubeApiKey,
   parseIso8601DurationToSeconds,
-} from "../lib/youtube-metadata.js";
+} from "@ludylops/video-analysis-core";
 
 export async function run(): Promise<void> {
   assert.equal(extractYouTubeVideoId("https://www.youtube.com/watch?v=test123"), "test123");

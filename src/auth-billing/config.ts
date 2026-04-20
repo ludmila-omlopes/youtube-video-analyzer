@@ -69,7 +69,7 @@ export type OAuthConfig = DisabledOAuthConfig | EnabledOAuthConfig;
 export function createDisabledOAuthConfig(
   env: NodeJS.ProcessEnv = process.env
 ): DisabledOAuthConfig {
-  const resourceName = readTrimmedEnv(env.OAUTH_RESOURCE_NAME) ?? "youtube-video-analyzer-mcp";
+  const resourceName = readTrimmedEnv(env.OAUTH_RESOURCE_NAME) ?? "youtube-video-analyzer";
   const clockToleranceSeconds = parseClockToleranceSeconds(env.OAUTH_CLOCK_TOLERANCE_SECONDS);
 
   return {
@@ -90,7 +90,7 @@ export function getOAuthConfig(env: NodeJS.ProcessEnv = process.env): OAuthConfi
     return createDisabledOAuthConfig(env);
   }
 
-  const resourceName = readTrimmedEnv(env.OAUTH_RESOURCE_NAME) ?? "youtube-video-analyzer-mcp";
+  const resourceName = readTrimmedEnv(env.OAUTH_RESOURCE_NAME) ?? "youtube-video-analyzer";
   const clockToleranceSeconds = parseClockToleranceSeconds(env.OAUTH_CLOCK_TOLERANCE_SECONDS);
 
   return {

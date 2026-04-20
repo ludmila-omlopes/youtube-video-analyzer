@@ -2,8 +2,11 @@ import process from "node:process";
 
 import { Redis } from "ioredis";
 
-import type { AnalysisSession } from "../youtube-core/types.js";
-import { AnalysisSessionStore, InMemoryAnalysisSessionStore } from "./session-store.js";
+import {
+  InMemoryAnalysisSessionStore,
+  type AnalysisSession,
+  type AnalysisSessionStore,
+} from "@ludylops/video-analysis-core";
 import {
   assertCloudDurabilityRequirement,
   getRedisUrlFromEnv,

@@ -4,12 +4,12 @@ import { createPrincipalScopedSessionStore } from "../app/principal-scoped-sessi
 import { InMemoryRemoteAccessStore } from "../app/remote-access-store.js";
 import { InMemoryAnalysisSessionStore } from "../app/session-store.js";
 import { getPrincipalKey, type AuthPrincipal } from "../lib/auth/principal.js";
-import type { AnalysisSession } from "../lib/types.js";
+import type { AnalysisSession } from "@ludylops/video-analysis-core";
 
 const principalA: AuthPrincipal = {
   subject: "google-oauth2|user-a",
   issuer: "https://issuer.example.com/",
-  audience: "https://youtube-analyzer-mcp.onrender.com/api/mcp",
+  audience: "https://youtube-video-analyzer.onrender.com/",
   scope: [],
   tokenId: "token-a",
   rawClaims: {},
@@ -18,7 +18,7 @@ const principalA: AuthPrincipal = {
 const principalB: AuthPrincipal = {
   subject: "google-oauth2|user-b",
   issuer: "https://issuer.example.com/",
-  audience: "https://youtube-analyzer-mcp.onrender.com/api/mcp",
+  audience: "https://youtube-video-analyzer.onrender.com/",
   scope: [],
   tokenId: "token-b",
   rawClaims: {},

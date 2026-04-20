@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { DiagnosticError } from "../lib/errors.js";
-import type { GetLongAnalysisJobToolOutput } from "../youtube-core/schemas.js";
+import { DiagnosticError, type GetLongAnalysisJobToolOutput } from "@ludylops/video-analysis-core";
 import type { LongAnalysisJobs } from "../platform-runtime/long-analysis-jobs.js";
 import { settleLongJobCreditReservation } from "./long-job-credit-settlement.js";
 import { getLongAnalysisChargeCredits } from "./pricing.js";

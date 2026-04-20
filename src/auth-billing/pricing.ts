@@ -1,4 +1,4 @@
-import type { LongToolInput, LongToolOutput } from "../youtube-core/schemas.js";
+import type { LongToolInput, LongToolOutput } from "@ludylops/video-analysis-core";
 
 export function getShortAnalysisChargeCredits(): number {
   return 1;

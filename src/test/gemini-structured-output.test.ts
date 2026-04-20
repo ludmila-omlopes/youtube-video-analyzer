@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 
-import { DiagnosticError } from "../lib/errors.js";
-import { generateStructuredJson } from "../lib/gemini.js";
+import { DiagnosticError, generateStructuredJson } from "@ludylops/video-analysis-core";
 
 const logger = {
   requestId: "test-request",

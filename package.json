@@ -1,33 +1,27 @@
 {
-  "name": "@ludylops/youtube-video-analyzer-mcp",
-  "mcpName": "io.github.ludmila-omlopes/youtube-video-analyzer",
+  "name": "@ludylops/youtube-video-analyzer",
   "version": "0.3.0",
-  "description": "MCP stdio server for analyzing YouTube videos with Google Gemini",
+  "description": "Hosted YouTube Video Analyzer platform (HTTP API, web dashboard, workers, billing)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ludmila-omlopes/youtube-video-analyzer-mcp.git"
+    "url": "git+https://github.com/ludmila-omlopes/youtube-video-analyzer.git"
   },
   "type": "module",
-  "main": "dist/index.js",
-  "bin": {
-    "youtube-video-analyzer-mcp": "bin/youtube-video-analyzer-mcp.js"
-  },
+  "main": "dist/dev/hosted.js",
   "files": [
-    "bin",
     "dist/*.js",
     "dist/dev",
     "dist/app",
     "dist/auth-billing",
     "dist/http",
-    "dist/lib",
     "dist/platform-runtime",
     "dist/workflow-packs",
-    "dist/youtube-core",
     "public",
     "README.md",
+    "docs/API.md",
     "LICENSE",
     ".env.example",
-    "server.json"
+    ".env.oauth.local.example"
   ],
   "publishConfig": {
     "access": "public"
@@ -36,29 +30,39 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && npm run build:core && tsc -p tsconfig.json",
+    "build:core": "npm run build -w @ludylops/video-analysis-core",
     "dev:admin": "tsx src/admin.ts",
-    "dev": "tsx src/index.ts",
+    "dev": "tsx src/dev/hosted.ts",
+    "dev:web": "cross-env BACKEND_URL=http://127.0.0.1:3010 npm run dev -w @ludylops/web",
+    "dev:all": "cross-env ALLOW_UNAUTHENTICATED_HOSTED_DEV=true concurrently -n api,web -c cyan,magenta \"npm:dev\" \"npm:dev:web\"",
     "dev:hosted": "tsx src/dev/hosted.ts",
+    "dev:hosted:oauth-local": "cross-env OAUTH_ENV_PROFILE=local tsx src/dev/hosted.ts",
+    "start:http:oauth-local": "cross-env OAUTH_ENV_PROFILE=local node dist/dev/hosted.js",
     "release:check": "node scripts/release-check.mjs",
     "start:admin": "node dist/admin.js",
     "start:http": "node dist/dev/hosted.js",
     "start:worker": "node dist/worker.js",
-    "start": "node bin/youtube-video-analyzer-mcp.js",
+    "start": "node dist/dev/hosted.js",
     "test": "npm run build && node dist/test/index.js"
   },
   "keywords": [
-    "mcp",
     "gemini",
     "youtube",
-    "video-analysis"
+    "video-analysis",
+    "http-api"
   ],
   "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "dependencies": {
+    "@ludylops/video-analysis-core": "workspace:*",
     "@bull-board/api": "^6.20.6",
     "@bull-board/express": "^6.20.6",
     "@google/genai": "^1.45.0",
-    "@modelcontextprotocol/sdk": "^1.27.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "bullmq": "^5.71.1",
@@ -66,11 +70,14 @@
     "express": "^5.2.1",
     "ioredis": "^5.10.1",
     "jose": "^6.2.2",
+    "marked": "^18.0.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.15",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

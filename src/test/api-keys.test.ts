@@ -9,7 +9,7 @@ import {
 const principal: AuthPrincipal = {
   subject: "user-1",
   issuer: "https://issuer.example.com/",
-  audience: "youtube-analyzer-web",
+  audience: "youtube-video-analyzer-web",
   scope: ["mcp:access"],
   tokenId: null,
   rawClaims: {},

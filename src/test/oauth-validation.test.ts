@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { errors as joseErrors } from "jose";
 
 import type { EnabledOAuthConfig } from "../lib/auth/config.js";
 import {
@@ -9,10 +10,10 @@ import {
 const oauthConfig: EnabledOAuthConfig = {
   enabled: true,
   issuer: "https://issuer.example.com/",
-  audience: "https://youtube-analyzer.onrender.com/api/mcp",
+  audience: "https://youtube-video-analyzer.onrender.com/",
   jwksUrl: "https://issuer.example.com/.well-known/jwks.json",
   requiredScope: "mcp:access",
-  resourceName: "youtube-video-analyzer-mcp",
+  resourceName: "youtube-video-analyzer",
   clockToleranceSeconds: 5,
 };
 
@@ -87,6 +88,21 @@ export async function run(): Promise<void> {
     (error: unknown) => {
       assert.equal(error instanceof AccessTokenValidationError, true);
       assert.equal((error as AccessTokenValidationError).code, "TOKEN_INVALID");
+      return true;
+    }
+  );
+
+  await assert.rejects(
+    () =>
+      validateAccessToken("Bearer opaque-not-a-jwt", oauthConfig, {
+        verifyPayload: async () => {
+          throw new joseErrors.JWSInvalid("Invalid Compact JWS");
+        },
+      }),
+    (error: unknown) => {
+      assert.equal(error instanceof AccessTokenValidationError, true);
+      assert.equal((error as AccessTokenValidationError).code, "TOKEN_INVALID");
+      assert.match((error as AccessTokenValidationError).message, /OAUTH_WEB_AUDIENCE/);
       return true;
     }
   );

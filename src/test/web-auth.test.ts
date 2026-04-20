@@ -13,10 +13,10 @@ import { authenticateWebRequest } from "../http/web-auth.js";
 const enabledConfig: EnabledOAuthConfig = {
   enabled: true,
   issuer: "https://issuer.example.com/",
-  audience: "https://youtube-analyzer.onrender.com/api/mcp",
+  audience: "https://youtube-video-analyzer.onrender.com/",
   jwksUrl: "https://issuer.example.com/.well-known/jwks.json",
   requiredScope: "mcp:access",
-  resourceName: "youtube-video-analyzer-mcp",
+  resourceName: "youtube-video-analyzer",
   clockToleranceSeconds: 5,
 };
 
@@ -74,7 +74,7 @@ export async function run(): Promise<void> {
     const created = await apiKeyStore.createApiKey(principal, "Script key");
 
     const apiKeyRequest = await authenticateWebRequest(
-      new Request("https://youtube-analyzer.onrender.com/api/web/session", {
+      new Request("https://youtube-video-analyzer.onrender.com/api/web/session", {
         headers: { "x-api-key": created.plaintextKey },
       }),
       {
@@ -92,7 +92,7 @@ export async function run(): Promise<void> {
     assert.equal(apiKeyRequest.principal.subject, principal.subject);
 
     const bearerRequest = await authenticateWebRequest(
-      new Request("https://youtube-analyzer.onrender.com/api/web/session", {
+      new Request("https://youtube-video-analyzer.onrender.com/api/web/session", {
         headers: { authorization: "Bearer token-1" },
       }),
       {
@@ -107,8 +107,27 @@ export async function run(): Promise<void> {
     }
     assert.equal(bearerRequest.authMode, "oauth");
 
+    const cookieSessionRequest = await authenticateWebRequest(
+      new Request("https://youtube-video-analyzer.onrender.com/api/web/session", {
+        headers: { cookie: "ya_session=token-from-cookie" },
+      }),
+      {
+        config: enabledConfig,
+        policy: protectedPolicy,
+        validateBearerToken: async (authorizationHeader) => {
+          assert.equal(authorizationHeader, "Bearer token-from-cookie");
+          return principal;
+        },
+      }
+    );
+    assert.equal(cookieSessionRequest.ok, true);
+    if (!cookieSessionRequest.ok) {
+      throw new Error("Expected hosted session cookie auth to succeed.");
+    }
+    assert.equal(cookieSessionRequest.authMode, "oauth");
+
     const failedRequest = await authenticateWebRequest(
-      new Request("https://youtube-analyzer.onrender.com/api/web/session"),
+      new Request("https://youtube-video-analyzer.onrender.com/api/web/session"),
       {
         config: enabledConfig,
         policy: protectedPolicy,
@@ -136,7 +155,7 @@ export async function run(): Promise<void> {
     assert.equal(payload.auth.browserSignin.enabled, false);
 
     const protectedMisconfigured = await authenticateWebRequest(
-      new Request("https://youtube-analyzer.onrender.com/api/web/session"),
+      new Request("https://youtube-video-analyzer.onrender.com/api/web/session"),
       {
         config: disabledConfig,
         policy: getHostedAccessPolicy({
@@ -158,7 +177,7 @@ export async function run(): Promise<void> {
     }
 
     const localRequest = await authenticateWebRequest(
-      new Request("https://youtube-analyzer.onrender.com/api/web/session"),
+      new Request("https://youtube-video-analyzer.onrender.com/api/web/session"),
       {
         config: disabledConfig,
         policy: getHostedAccessPolicy({

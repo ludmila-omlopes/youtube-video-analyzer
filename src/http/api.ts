@@ -14,8 +14,20 @@ import {
   type RemoteAccountStatus,
   type UsageEventStore,
 } from "../auth-billing/index.js";
-import { asDiagnosticError, DiagnosticError } from "../lib/errors.js";
-import { createRequestLogger } from "../lib/logger.js";
+import {
+  asDiagnosticError,
+  audioToolInputSchema,
+  createRequestLogger,
+  DiagnosticError,
+  longToolInputSchema,
+  metadataToolInputSchema,
+  shortToolInputSchema,
+  type AudioToolInput,
+  type LongToolInput,
+  type MetadataToolInput,
+  type ShortToolInput,
+  type VideoAnalysisServiceLike,
+} from "@ludylops/video-analysis-core";
 import {
   createBullMqLongAnalysisJobsFromEnv,
   createCloudSessionStore,
@@ -23,19 +35,6 @@ import {
   type AnalysisSessionStore,
   type LongAnalysisJobs,
 } from "../platform-runtime/index.js";
-import type {
-  AudioToolInput,
-  LongToolInput,
-  MetadataToolInput,
-  ShortToolInput,
-  VideoAnalysisServiceLike,
-} from "../youtube-core/index.js";
-import {
-  audioToolInputSchema,
-  longToolInputSchema,
-  metadataToolInputSchema,
-  shortToolInputSchema,
-} from "../youtube-core/index.js";
 
 import {
   authenticateWebRequest,

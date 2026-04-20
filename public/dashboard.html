@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Account · YouTube Video Analyzer</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0d12;
+        --surface: #121722;
+        --line: rgba(255, 255, 255, 0.1);
+        --text: #f4eee4;
+        --muted: rgba(244, 238, 228, 0.68);
+        --accent: #ff9152;
+        --gold: #f7c98b;
+        --good: #80d59b;
+        --warn: #ffc96f;
+        --bad: #ff8d8d;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #141923 0%, var(--bg) 42%);
+      }
+      a {
+        color: var(--gold);
+      }
+      button,
+      input {
+        font: inherit;
+      }
+      .wrap {
+        width: min(calc(100% - 28px), 920px);
+        margin: 0 auto;
+        padding: 24px 0 48px;
+      }
+      .top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 28px;
+      }
+      .brand {
+        font-weight: 700;
+        letter-spacing: 0.04em;
+      }
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+      }
+      .toast {
+        display: none;
+        padding: 12px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(128, 213, 155, 0.35);
+        background: rgba(128, 213, 155, 0.1);
+        color: var(--muted);
+        margin-bottom: 20px;
+      }
+      .toast.show {
+        display: block;
+      }
+      .grid {
+        display: grid;
+        gap: 18px;
+      }
+      @media (min-width: 720px) {
+        .grid.cols-2 {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .card {
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--surface);
+      }
+      .card h2 {
+        margin: 0 0 14px;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--gold);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .stat {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .meta {
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .empty {
+        color: var(--muted);
+        padding: 12px 0;
+      }
+      .row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .btn {
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        cursor: pointer;
+      }
+      .btn.primary {
+        border-color: transparent;
+        background: linear-gradient(135deg, var(--gold), var(--accent));
+        color: #1f120b;
+        font-weight: 600;
+      }
+      .btn.danger {
+        border-color: rgba(255, 141, 141, 0.4);
+        color: var(--bad);
+        background: rgba(255, 80, 80, 0.08);
+      }
+      .key-plain {
+        word-break: break-all;
+        font-family: ui-monospace, monospace;
+        font-size: 0.82rem;
+        padding: 12px;
+        border-radius: 10px;
+        background: rgba(0, 0, 0, 0.35);
+        border: 1px solid var(--line);
+        margin-top: 10px;
+      }
+      .banner {
+        padding: 16px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 145, 82, 0.08);
+        color: var(--muted);
+      }
+      .banner.bad {
+        border-color: rgba(255, 141, 141, 0.35);
+        background: rgba(255, 80, 80, 0.08);
+      }
+      code {
+        font-size: 0.82rem;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <div class="brand">YouTube Video Analyzer</div>
+        <nav class="nav" id="nav">
+          <a href="/">Home</a>
+          <a href="/docs/api">API docs</a>
+          <a href="/login" id="nav-login">Sign in</a>
+          <a href="/logout" id="nav-logout" style="display: none">Sign out</a>
+        </nav>
+      </header>
+
+      <div class="toast" id="toast"></div>
+
+      <div id="state-signin" class="banner" style="display: none">
+        <strong>Sign in required.</strong>
+        <span id="signin-msg"> Use your account to view credits and API activity.</span>
+        <div class="row-actions">
+          <a class="btn primary" href="/login" style="text-decoration: none; display: inline-block">Continue to sign in</a>
+        </div>
+      </div>
+
+      <div id="state-main" style="display: none" class="grid">
+        <div class="grid cols-2">
+          <div class="card">
+            <h2>Credits</h2>
+            <div class="stat" id="credit-balance">—</div>
+            <p class="meta" id="credit-meta"></p>
+          </div>
+          <div class="card">
+            <h2>Plan</h2>
+            <div class="stat" id="plan-name" style="font-size: 1.4rem; text-transform: capitalize">—</div>
+            <p class="meta" id="plan-meta"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>HTTP API</h2>
+          <p class="meta" style="margin: 0 0 8px">Use the bearer token from your IdP or an API key below. Base path for versioned routes:</p>
+          <code id="api-base-path">/api/v1</code>
+          <p class="meta" style="margin-top: 12px">
+            Browser sessions use a cookie; programmatic clients should send <code>Authorization: Bearer …</code> or
+            <code>x-api-key</code>.
+          </p>
+          <p class="meta" style="margin-top: 12px">
+            Full route and auth summary:
+            <a href="/docs/api" target="_blank" rel="noopener">Hosted HTTP API reference</a>
+            (<code>GET /docs/api</code> HTML ·
+            <a href="/docs/api/raw" target="_blank" rel="noopener">Markdown</a>).
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>Recent usage</h2>
+          <div style="overflow-x: auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Event</th>
+                  <th>Tool</th>
+                  <th>Δ credits</th>
+                </tr>
+              </thead>
+              <tbody id="usage-body"></tbody>
+            </table>
+          </div>
+          <p class="empty" id="usage-empty" style="display: none">No usage events yet.</p>
+        </div>
+
+        <div class="card">
+          <h2>Workflow runs</h2>
+          <div style="overflow-x: auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Workflow</th>
+                  <th>Status</th>
+                  <th>Summary</th>
+                </tr>
+              </thead>
+              <tbody id="runs-body"></tbody>
+            </table>
+          </div>
+          <p class="empty" id="runs-empty" style="display: none">No workflow runs recorded.</p>
+        </div>
+
+        <div class="card" id="keys-card" style="display: none">
+          <h2>API keys</h2>
+          <p class="meta" style="margin-top: 0">Create keys for scripts and API clients. Store secrets safely; they are only shown once.</p>
+          <div class="row-actions">
+            <input id="key-label" type="text" placeholder="Label (optional)" style="flex: 1; min-width: 160px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--text)" />
+            <button type="button" class="btn primary" id="key-create">Create key</button>
+          </div>
+          <div id="key-new-wrap" style="display: none; margin-top: 16px">
+            <strong style="color: var(--good)">New key (copy now)</strong>
+            <div class="key-plain" id="key-new-plain"></div>
+          </div>
+          <div style="overflow-x: auto; margin-top: 18px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Label</th>
+                  <th>Prefix</th>
+                  <th>Created</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="keys-body"></tbody>
+            </table>
+          </div>
+          <p class="empty" id="keys-empty" style="display: none">No API keys yet.</p>
+        </div>
+
+        <div class="card" id="keys-locked" style="display: none">
+          <h2>API keys</h2>
+          <p class="meta">API keys are not enabled for your current plan.</p>
+        </div>
+      </div>
+
+      <div id="state-error" class="banner bad" style="display: none"></div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      const escapeHtml = (value) =>
+        String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
+
+      async function fetchSession() {
+        const response = await fetch("/api/web/session", {
+          credentials: "include",
+          headers: { accept: "application/json" },
+        });
+        const payload = await response.json().catch(() => ({}));
+        return { response, payload };
+      }
+
+      function showToast(text) {
+        const el = $("toast");
+        el.textContent = text;
+        el.classList.add("show");
+      }
+
+      function formatKind(kind) {
+        return String(kind || "").replaceAll(".", " ");
+      }
+
+      function renderUsage(events) {
+        const body = $("usage-body");
+        const empty = $("usage-empty");
+        body.innerHTML = "";
+        if (!events?.length) {
+          empty.style.display = "block";
+          return;
+        }
+        empty.style.display = "none";
+        for (const ev of events) {
+          const tr = document.createElement("tr");
+          const delta =
+            ev.creditsDelta != null && ev.creditsDelta !== ""
+              ? String(ev.creditsDelta)
+              : "—";
+          tr.innerHTML = `
+            <td>${escapeHtml(ev.occurredAt || "")}</td>
+            <td>${escapeHtml(formatKind(ev.kind))}</td>
+            <td>${escapeHtml(ev.tool || "—")}</td>
+            <td>${escapeHtml(delta)}</td>`;
+          body.appendChild(tr);
+        }
+      }
+
+      function renderRuns(runs) {
+        const body = $("runs-body");
+        const empty = $("runs-empty");
+        body.innerHTML = "";
+        if (!runs?.length) {
+          empty.style.display = "block";
+          return;
+        }
+        empty.style.display = "none";
+        for (const run of runs) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${escapeHtml(run.createdAt || "")}</td>
+            <td>${escapeHtml(run.workflowLabel || run.workflowId || "—")}</td>
+            <td>${escapeHtml(run.status || "—")}</td>
+            <td>${escapeHtml(run.summary || "—")}</td>`;
+          body.appendChild(tr);
+        }
+      }
+
+      function renderKeys(keys) {
+        const body = $("keys-body");
+        const empty = $("keys-empty");
+        body.innerHTML = "";
+        if (!keys?.length) {
+          empty.style.display = "block";
+          return;
+        }
+        empty.style.display = "none";
+        for (const k of keys) {
+          if (k.revokedAt) continue;
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${escapeHtml(k.label || "")}</td>
+            <td><code>${escapeHtml(k.prefix || "")}</code></td>
+            <td>${escapeHtml(k.createdAt || "")}</td>
+            <td><button type="button" class="btn danger btn-revoke" data-key-id="${escapeHtml(k.keyId)}">Revoke</button></td>`;
+          body.appendChild(tr);
+        }
+        for (const btn of body.querySelectorAll(".btn-revoke")) {
+          btn.addEventListener("click", async () => {
+            const keyId = btn.getAttribute("data-key-id");
+            if (!keyId || !confirm("Revoke this API key?")) return;
+            const r = await fetch(`/api/web/api-keys?keyId=${encodeURIComponent(keyId)}`, {
+              method: "DELETE",
+              credentials: "include",
+            });
+            if (!r.ok) {
+              alert("Could not revoke key.");
+              return;
+            }
+            await load();
+          });
+        }
+      }
+
+      async function createKey() {
+        const label = $("key-label").value.trim();
+        $("key-new-wrap").style.display = "none";
+        const r = await fetch("/api/web/api-keys", {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(label ? { label } : {}),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          alert(data?.error?.message || "Could not create key.");
+          return;
+        }
+        $("key-new-plain").textContent = data.plaintextKey || "";
+        $("key-new-wrap").style.display = "block";
+        $("key-label").value = "";
+        await load();
+      }
+
+      async function load() {
+        const { response, payload } = await fetchSession();
+
+        $("state-signin").style.display = "none";
+        $("state-main").style.display = "none";
+        $("state-error").style.display = "none";
+
+        if (response.status === 401) {
+          $("state-signin").style.display = "block";
+          $("nav-login").style.display = "";
+          $("nav-logout").style.display = "none";
+          const detail = payload?.error?.message || "";
+          if (detail) $("signin-msg").textContent = " " + detail;
+          return;
+        }
+
+        if (response.status === 503 && payload?.error?.code === "HOSTED_AUTH_CONFIGURATION_INVALID") {
+          $("state-error").style.display = "block";
+          $("state-error").textContent = payload?.error?.message || "Auth is not configured.";
+          return;
+        }
+
+        if (!response.ok) {
+          $("state-error").style.display = "block";
+          $("state-error").textContent =
+            payload?.error?.message || `Something went wrong (HTTP ${response.status}).`;
+          return;
+        }
+
+        $("nav-login").style.display = "none";
+        $("nav-logout").style.display = "";
+
+        const acc = payload.account;
+        const ent = acc.entitlements || {};
+
+        $("credit-balance").textContent = String(acc.creditBalance ?? "—");
+        const included = ent.monthlyIncludedCredits;
+        $("credit-meta").textContent =
+          included != null
+            ? `Plan reference: up to ${included} included credits / month (operator may adjust balance).`
+            : "Credit grants depend on your plan and operator settings.";
+
+        $("plan-name").textContent = acc.plan || "—";
+        $("plan-meta").textContent = `Account ${acc.accountId?.slice(0, 48) || ""}${acc.accountId?.length > 48 ? "…" : ""}`;
+
+        const apiBase = new URL("/api/v1", window.location.origin).toString();
+        $("api-base-path").textContent = apiBase;
+
+        renderUsage(payload.recentUsageEvents);
+        renderRuns(payload.recentRuns);
+
+        if (payload.endpoints?.apiKeys === "enabled") {
+          $("keys-card").style.display = "block";
+          $("keys-locked").style.display = "none";
+          renderKeys(payload.apiKeys);
+        } else {
+          $("keys-card").style.display = "none";
+          $("keys-locked").style.display = "block";
+        }
+
+        $("state-main").style.display = "grid";
+      }
+
+      $("key-create").addEventListener("click", createKey);
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("signed_in") === "1") {
+        showToast("You are signed in. Credits and usage appear below.");
+      }
+
+      void load();
+    </script>
+  </body>
+</html>
+

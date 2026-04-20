@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 import { InMemoryAnalysisSessionStore } from "../app/session-store.js";
-import type { AnalysisSession } from "../lib/types.js";
+import type { AnalysisSession } from "@ludylops/video-analysis-core";
 
 const session: AnalysisSession = {
   sessionId: "session-1",

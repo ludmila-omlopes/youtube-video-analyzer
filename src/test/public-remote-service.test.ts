@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { createPublicRemoteVideoAnalysisService } from "../app/create-public-remote-service.js";
 import type { AnalysisSessionStore } from "../app/session-store.js";
-import type { AnalysisSession } from "../lib/types.js";
+import type { AnalysisSession } from "@ludylops/video-analysis-core";
 import { testLogger } from "./test-helpers.js";
 
 class FakeCloudSessionStore implements AnalysisSessionStore {

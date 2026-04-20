@@ -61,11 +61,11 @@ export async function run(): Promise<void> {
       {
         host: "0.0.0.0:10000",
         "x-forwarded-proto": "https",
-        "x-forwarded-host": "youtube-analyzer.onrender.com",
+        "x-forwarded-host": "youtube-video-analyzer.onrender.com",
       },
       "0.0.0.0:10000"
     ),
-    "https://youtube-analyzer.onrender.com"
+    "https://youtube-video-analyzer.onrender.com"
   );
 
   const rootRoute = resolveRoute("/", "GET");
@@ -79,25 +79,27 @@ export async function run(): Promise<void> {
   const rootHtml = await rootResponse.text();
 
   assert.equal(rootResponse.headers.get("content-type"), "text/html; charset=utf-8");
-  assert.match(rootHtml, /YouTube Analyzer \| YouTube Intelligence Platform/);
+  assert.match(rootHtml, /YouTube Video Analyzer \| YouTube Intelligence Platform/);
   assert.match(rootHtml, /Render is the production path/);
-  assert.match(rootHtml, /\/api\/mcp/);
+  assert.match(rootHtml, /\/docs\/api/);
 
   const proxiedRootResponse = await (rootRoute as (request: Request) => Promise<Response>)(
-    new Request("https://youtube-analyzer.onrender.com/")
+    new Request("https://youtube-video-analyzer.onrender.com/")
   );
   const proxiedRootHtml = await proxiedRootResponse.text();
 
   assert.equal(proxiedRootResponse.headers.get("content-type"), "text/html; charset=utf-8");
   assert.match(proxiedRootHtml, /Vercel is optional/);
 
-  const appResponse = await (appRoute as () => Promise<Response>)();
-  const appHtml = await appResponse.text();
-  assert.equal(appResponse.status, 200);
-  assert.match(appHtml, /Monetization Scan/);
+  const appResponse = await (appRoute as (request: Request) => Promise<Response>)(
+    new Request("http://127.0.0.1:3010/app")
+  );
+  assert.equal(appResponse.status, 302);
+  assert.equal(appResponse.headers.get("location"), "/dashboard");
 
-  const mcpGetRoute = resolveRoute("/api/mcp", "GET");
-  assert.equal(mcpGetRoute instanceof Response, false);
+  const removedMcpRoute = resolveRoute("/api/mcp", "GET");
+  assert.equal(removedMcpRoute instanceof Response, true);
+  assert.equal((removedMcpRoute as Response).status, 404);
   const webSessionRoute = resolveRoute("/api/web/session", "GET");
   assert.equal(webSessionRoute instanceof Response, false);
 
@@ -141,7 +143,7 @@ export async function run(): Promise<void> {
       };
       assert.equal(webSessionResponse.status, 200);
       assert.equal(webSessionPayload.auth.mode, "local");
-      assert.match(webSessionPayload.account.accountId, /^local:\/\/youtube-analyzer-web:/);
+      assert.match(webSessionPayload.account.accountId, /^local:\/\/youtube-video-analyzer-web:/);
     }
   );
 
@@ -150,13 +152,13 @@ export async function run(): Promise<void> {
       ALLOW_UNAUTHENTICATED_HOSTED_DEV: undefined,
       OAUTH_ENABLED: "true",
       OAUTH_ISSUER: "https://issuer.example.com/",
-      OAUTH_AUDIENCE: "https://youtube-analyzer.onrender.com/api/mcp",
+      OAUTH_AUDIENCE: "https://youtube-video-analyzer.onrender.com/",
       OAUTH_JWKS_URL: "https://issuer.example.com/.well-known/jwks.json",
       OAUTH_REQUIRED_SCOPE: "mcp:access",
     },
     async () => {
       const enabledMetadataResponse = await (metadataRoute as (request: Request) => Promise<Response>)(
-        new Request(`https://youtube-analyzer.onrender.com${OAUTH_PROTECTED_RESOURCE_METADATA_PATH}`)
+        new Request(`https://youtube-video-analyzer.onrender.com${OAUTH_PROTECTED_RESOURCE_METADATA_PATH}`)
       );
       const metadataPayload = (await enabledMetadataResponse.json()) as {
         resource: string;
@@ -167,7 +169,7 @@ export async function run(): Promise<void> {
 
       assert.equal(enabledMetadataResponse.status, 200);
       assert.deepEqual(metadataPayload, {
-        resource: "https://youtube-analyzer.onrender.com/api/mcp",
+        resource: "https://youtube-video-analyzer.onrender.com/",
         authorization_servers: ["https://issuer.example.com/"],
         bearer_methods_supported: ["header"],
         scopes_supported: ["mcp:access"],

@@ -2,7 +2,7 @@ import type {
   AnalysisExecutionContext,
   MetadataToolOutput,
   VideoAnalysisServiceLike,
-} from "../youtube-core/index.js";
+} from "@ludylops/video-analysis-core";
 
 const monetizationScanSchema = {
   type: "object",

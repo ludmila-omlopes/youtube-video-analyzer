@@ -7,7 +7,7 @@ export async function run(): Promise<void> {
   const disabled = getBrowserOAuthClientConfig({});
   assert.equal(disabled.enabled, false);
   assert.equal(disabled.reason, "not_configured");
-  assert.equal(disabled.redirectPath, "/app");
+  assert.equal(disabled.redirectPath, "/oauth/callback");
 
   const incomplete = getBrowserOAuthClientConfig({
     OAUTH_WEB_CLIENT_ID: "client-1",
@@ -22,8 +22,8 @@ export async function run(): Promise<void> {
     OAUTH_WEB_TOKEN_URL: "https://issuer.example.com/oauth/token",
     OAUTH_WEB_REDIRECT_PATH: "/app/oauth/callback",
     OAUTH_WEB_SCOPES: "openid profile mcp:access",
-    OAUTH_WEB_AUDIENCE: "https://youtube-analyzer.onrender.com/api/mcp",
-    OAUTH_WEB_RESOURCE: "https://youtube-analyzer.onrender.com/api/mcp",
+    OAUTH_WEB_AUDIENCE: "https://youtube-video-analyzer.onrender.com/",
+    OAUTH_WEB_RESOURCE: "https://youtube-video-analyzer.onrender.com/",
   });
 
   assert.equal(enabled.enabled, true);
@@ -36,7 +36,7 @@ export async function run(): Promise<void> {
   assert.deepEqual(enabled.scopes, ["openid", "profile", "mcp:access"]);
 
   const payload = resolveBrowserSigninPayload(
-    new Request("https://youtube-analyzer.onrender.com/app"),
+    new Request("https://youtube-video-analyzer.onrender.com/app"),
     enabled
   );
   assert.deepEqual(payload, {
@@ -45,9 +45,30 @@ export async function run(): Promise<void> {
     authorizationUrl: "https://issuer.example.com/authorize",
     tokenUrl: "https://issuer.example.com/oauth/token",
     clientId: "client-1",
-    redirectUrl: "https://youtube-analyzer.onrender.com/app/oauth/callback",
+    redirectUrl: "https://youtube-video-analyzer.onrender.com/app/oauth/callback",
     scopes: ["openid", "profile", "mcp:access"],
-    audience: "https://youtube-analyzer.onrender.com/api/mcp",
-    resource: "https://youtube-analyzer.onrender.com/api/mcp",
+    audience: "https://youtube-video-analyzer.onrender.com/",
+    resource: "https://youtube-video-analyzer.onrender.com/",
   });
+
+  const audienceFromOAuthAudience = getBrowserOAuthClientConfig({
+    OAUTH_WEB_CLIENT_ID: "client-1",
+    OAUTH_WEB_AUTHORIZATION_URL: "https://issuer.example.com/authorize",
+    OAUTH_WEB_TOKEN_URL: "https://issuer.example.com/oauth/token",
+    OAUTH_AUDIENCE: "https://youtube-video-analyzer.onrender.com/",
+  });
+  assert.equal(audienceFromOAuthAudience.enabled, true);
+  if (!audienceFromOAuthAudience.enabled) {
+    throw new Error("Expected enabled browser OAuth config.");
+  }
+  assert.equal(audienceFromOAuthAudience.audience, "https://youtube-video-analyzer.onrender.com/");
+  assert.equal(audienceFromOAuthAudience.resource, "https://youtube-video-analyzer.onrender.com/");
+
+  const badUrls = getBrowserOAuthClientConfig({
+    OAUTH_WEB_CLIENT_ID: "client-1",
+    OAUTH_WEB_AUTHORIZATION_URL: "not-a-valid-url",
+    OAUTH_WEB_TOKEN_URL: "https://issuer.example.com/oauth/token",
+  });
+  assert.equal(badUrls.enabled, false);
+  assert.equal(badUrls.reason, "incomplete_config");
 }

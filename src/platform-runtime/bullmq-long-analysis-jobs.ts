@@ -3,8 +3,11 @@ import process from "node:process";
 import { Job, Queue, Worker, type JobState } from "bullmq";
 import { Redis } from "ioredis";
 
-import { DEFAULT_LONG_ANALYSIS_JOB_POLL_SECONDS, LONG_ANALYSIS_JOB_QUEUE_NAME } from "../lib/constants.js";
-import { createRequestLogger } from "../lib/logger.js";
+import {
+  createRequestLogger,
+  DEFAULT_LONG_ANALYSIS_JOB_POLL_SECONDS,
+  LONG_ANALYSIS_JOB_QUEUE_NAME,
+} from "@ludylops/video-analysis-core";
 import type {
   AnalysisExecutionContext,
   GetLongAnalysisJobToolOutput,
@@ -13,7 +16,7 @@ import type {
   ProgressUpdate,
   StartLongAnalysisJobToolOutput,
   VideoAnalysisServiceLike,
-} from "../youtube-core/index.js";
+} from "@ludylops/video-analysis-core";
 import { getRedisUrlFromEnv } from "./durability-policy.js";
 import { createCloudVideoAnalysisService } from "./create-service.js";
 import type { LongAnalysisJobs } from "./long-analysis-jobs.js";

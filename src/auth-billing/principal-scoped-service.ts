@@ -1,5 +1,8 @@
-import { DiagnosticError } from "../lib/errors.js";
-import type { AnalysisExecutionContext, VideoAnalysisServiceLike } from "../youtube-core/index.js";
+import {
+  DiagnosticError,
+  type AnalysisExecutionContext,
+  type VideoAnalysisServiceLike,
+} from "@ludylops/video-analysis-core";
 import { getAudioAnalysisChargeCredits, getShortAnalysisChargeCredits } from "./pricing.js";
 import { getPrincipalKey, type AuthPrincipal } from "./principal.js";
 import type { RemoteAccount } from "./remote-account.js";

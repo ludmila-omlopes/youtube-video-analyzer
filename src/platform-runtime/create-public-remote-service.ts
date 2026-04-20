@@ -3,7 +3,7 @@ import {
   VideoAnalysisService,
   type VideoAnalysisServiceDeps,
   type VideoAnalysisServiceLike,
-} from "../youtube-core/index.js";
+} from "@ludylops/video-analysis-core";
 import { createCloudSessionStore } from "./sessions.js";
 
 export type CreatePublicRemoteVideoAnalysisServiceOptions = {
