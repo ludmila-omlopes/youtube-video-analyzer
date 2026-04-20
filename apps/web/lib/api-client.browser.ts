@@ -68,3 +68,75 @@ export async function browserFetch<T>(
 
   return (await res.json()) as T;
 }
+
+export async function browserReadJsonLines<T>(
+  path: string,
+  init: RequestInit & { query?: Record<string, string | undefined> } = {},
+  onMessage?: (message: T) => void | Promise<void>
+): Promise<void> {
+  const { query, headers, ...rest } = init;
+  const url = resolveBrowserUrl(path);
+  if (query) {
+    for (const [k, v] of Object.entries(query)) {
+      if (v != null) url.searchParams.set(k, v);
+    }
+  }
+
+  const res = await fetch(url.toString(), {
+    ...rest,
+    credentials: "include",
+    headers: {
+      accept: "application/x-ndjson",
+      ...(rest.body ? { "content-type": "application/json" } : {}),
+      ...headers,
+    },
+  });
+
+  if (!res.ok) {
+    let body: ApiErrorBody | null = null;
+    try {
+      body = (await res.json()) as ApiErrorBody;
+    } catch {
+      // non-JSON
+    }
+    throw new BrowserApiError(res.status, body, body?.error?.message ?? `HTTP ${res.status}`);
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json") && !contentType.includes("application/x-ndjson")) {
+    await onMessage?.((await res.json()) as T);
+    return;
+  }
+
+  if (!res.body) {
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+
+    let newlineIndex = buffer.indexOf("\n");
+    while (newlineIndex >= 0) {
+      const line = buffer.slice(0, newlineIndex).trim();
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line) {
+        await onMessage?.(JSON.parse(line) as T);
+      }
+      newlineIndex = buffer.indexOf("\n");
+    }
+
+    if (done) {
+      break;
+    }
+  }
+
+  const tail = buffer.trim();
+  if (tail) {
+    await onMessage?.(JSON.parse(tail) as T);
+  }
+}

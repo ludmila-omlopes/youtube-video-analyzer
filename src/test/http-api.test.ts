@@ -18,6 +18,7 @@ import {
   createApiShortAnalysisHandler,
 } from "../http/api.js";
 import type {
+  AnalysisExecutionContext,
   AudioToolInput,
   AudioToolOutput,
   FollowUpToolInput,
@@ -51,7 +52,21 @@ const localConfig: OAuthConfig = {
 };
 
 class FakeApiService implements VideoAnalysisServiceLike {
-  async analyzeShort(input: ShortToolInput): Promise<ShortToolOutput> {
+  async analyzeShort(
+    input: ShortToolInput,
+    context?: AnalysisExecutionContext
+  ): Promise<ShortToolOutput> {
+    await context?.reportProgress?.({
+      progress: 3,
+      total: 5,
+      message: "Asking Gemini to analyze the video.",
+    });
+    await context?.reportProgress?.({
+      progress: 4,
+      total: 5,
+      message: "Checking Gemini's response.",
+    });
+
     return {
       model: "gemini-test",
       youtubeUrl: input.youtubeUrl,
@@ -217,6 +232,41 @@ export async function run(): Promise<void> {
     assert.equal(shortPayload.account.accountId, accountId);
     assert.equal(shortPayload.account.creditBalance, initialCredits - 1);
 
+    const streamedShortResponse = await shortHandler(
+      new Request("https://example.com/api/v1/analyze/short", {
+        method: "POST",
+        headers: {
+          accept: "application/x-ndjson",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          youtubeUrl: "https://www.youtube.com/watch?v=test",
+        }),
+      })
+    );
+    const streamedLines = (await streamedShortResponse.text())
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    assert.equal(streamedShortResponse.status, 200);
+    assert.deepEqual(
+      streamedLines.map((event) => event.type),
+      ["progress", "progress", "progress", "progress", "progress", "result"]
+    );
+    assert.equal(streamedLines[0].message, "Checking the YouTube link.");
+    assert.equal(streamedLines[1].message, "Checking your credits.");
+    assert.equal(streamedLines[2].message, "Asking Gemini to analyze the video.");
+    assert.equal(streamedLines[3].message, "Checking Gemini's response.");
+    assert.equal(streamedLines[4].message, "Updating your account and finishing up.");
+    assert.equal(
+      ((streamedLines[5].payload as { result: { analysis: { summary: string } } }).result.analysis.summary),
+      "short-analysis"
+    );
+    assert.equal(
+      ((streamedLines[5].payload as { account: { creditBalance: number } }).account.creditBalance),
+      initialCredits - 2
+    );
+
     const audioResponse = await audioHandler(
       new Request("https://example.com/api/v1/analyze/audio", {
         method: "POST",
@@ -232,11 +282,11 @@ export async function run(): Promise<void> {
     };
     assert.equal(audioResponse.status, 200);
     assert.equal(audioPayload.result.analysis.summary, "audio-analysis");
-    assert.equal(audioPayload.account.creditBalance, initialCredits - 2);
+    assert.equal(audioPayload.account.creditBalance, initialCredits - 3);
 
     const usageEvents = await usageEventStore.listForAccount(accountId);
-    assert.equal(usageEvents.filter((event) => event.kind === "credits.reserved").length, 2);
-    assert.equal(usageEvents.filter((event) => event.kind === "credits.finalized").length, 2);
+    assert.equal(usageEvents.filter((event) => event.kind === "credits.reserved").length, 3);
+    assert.equal(usageEvents.filter((event) => event.kind === "credits.finalized").length, 3);
   }
 
   {
@@ -269,6 +319,37 @@ export async function run(): Promise<void> {
     assert.equal(insufficientCreditsResponse.status, 402);
     assert.equal(insufficientCreditsPayload.error.code, "INSUFFICIENT_CREDITS");
     assert.equal(insufficientCreditsPayload.account.creditBalance, 0);
+
+    const streamedInsufficientCreditsResponse = await shortHandler(
+      new Request("https://example.com/api/v1/analyze/short", {
+        method: "POST",
+        headers: {
+          accept: "application/x-ndjson",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          youtubeUrl: "https://www.youtube.com/watch?v=test",
+        }),
+      })
+    );
+    const streamedInsufficientLines = (await streamedInsufficientCreditsResponse.text())
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    assert.equal(streamedInsufficientCreditsResponse.status, 200);
+    assert.deepEqual(
+      streamedInsufficientLines.map((event) => event.type),
+      ["progress", "progress", "error"]
+    );
+    assert.equal(streamedInsufficientLines[2].status, 402);
+    assert.equal(
+      ((streamedInsufficientLines[2].payload as { error: { code: string } }).error.code),
+      "INSUFFICIENT_CREDITS"
+    );
+    assert.equal(
+      ((streamedInsufficientLines[2].lastProgress as { message: string }).message),
+      "Checking your credits."
+    );
   }
 
   {
