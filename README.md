@@ -2,8 +2,6 @@
 
 This repository is the **hosted product** and npm package **`@ludylops/youtube-video-analyzer`**: an Express-based HTTP server, browser flows (`/login`, `/app`, `/dashboard`), a **versioned REST API** under `/api/v1`, account-scoped JSON under `/api/web`, Redis-backed **BullMQ** long-video jobs, and an operator admin surface. Shared analysis logic lives in the workspace package **`@ludylops/video-analysis-core`**.
 
-The **MCP `stdio` server** (registry entrypoint, local tools, and MCP Registry metadata) is developed and published from the sibling repository **[youtube-video-analyzer-mcp-server](https://github.com/ludmila-omlopes/youtube-video-analyzer-mcp-server)** (`npm` package **`@ludylops/youtube-video-analyzer-mcp`**). This monorepo intentionally does **not** expose MCP over HTTP (`/api/mcp` is removed).
-
 ## Features
 
 - **REST**: `POST /api/v1/metadata`, `POST /api/v1/analyze/short`, `POST /api/v1/analyze/audio`, long jobs under `POST /api/v1/long-jobs` and `GET /api/v1/long-jobs/:jobId` (with worker + Redis when configured)
