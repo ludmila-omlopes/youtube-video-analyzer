@@ -63,6 +63,7 @@ export type GenerationContext = {
   details?: Record<string, unknown>;
   timeoutMs?: number;
   abortSignal?: AbortSignal;
+  onResponseReceived?: () => void | Promise<void>;
 };
 
 type HttpConfig = {
@@ -703,6 +704,7 @@ export async function generateStructuredJson(
       });
     }
 
+    await context.onResponseReceived?.();
     const parsed = ensureJsonObject(parseJsonText(rawText));
     validateJsonObjectAgainstSchema(params.responseSchema, parsed);
     return parsed;
@@ -880,7 +882,6 @@ export const GEMINI_DEFAULT_TIMEOUTS = {
   synthesis: SYNTHESIS_TIMEOUT_MS,
   processingDeadline: FILE_PROCESSING_DEADLINE_MS,
 } as const;
-
 
 
 

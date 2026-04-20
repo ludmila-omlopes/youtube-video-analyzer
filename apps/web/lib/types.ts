@@ -87,10 +87,38 @@ export type LongJobResponse = {
 };
 
 export type ApiErrorBody = {
+  requestId?: string;
   error: {
     code: string;
     message: string;
     stage?: string;
     retryable?: boolean;
+    details?: Record<string, unknown> | null;
   };
+  account?: AnalyzeResponse["account"] | null;
 };
+
+export type ShortAnalysisProgressEvent = {
+  type: "progress";
+  requestId: string;
+  progress: number;
+  total: number | null;
+  message: string;
+};
+
+export type ShortAnalysisResultEvent = {
+  type: "result";
+  payload: AnalyzeResponse;
+};
+
+export type ShortAnalysisErrorEvent = {
+  type: "error";
+  status: number;
+  payload: ApiErrorBody;
+  lastProgress: ShortAnalysisProgressEvent | null;
+};
+
+export type ShortAnalysisStreamEvent =
+  | ShortAnalysisProgressEvent
+  | ShortAnalysisResultEvent
+  | ShortAnalysisErrorEvent;

@@ -78,9 +78,8 @@ async function proxyRequest(
 
   const responseHeaders = new Headers();
   copyResponseHeaders(upstream.headers, responseHeaders);
-  const payload = await upstream.arrayBuffer();
 
-  return new NextResponse(payload, {
+  return new NextResponse(upstream.body, {
     status: upstream.status,
     headers: responseHeaders,
   });
