@@ -8,6 +8,7 @@ import {
   browserReadJsonLines,
   BrowserApiError,
 } from "@/lib/api-client.browser";
+import { StructuredResultView } from "@/components/structured-result-view";
 import type {
   AnalyzeResponse,
   ApiErrorBody,
@@ -432,9 +433,9 @@ export function AnalyzeForm() {
             request <code>{syncResult.requestId}</code> - balance now{" "}
             {syncResult.account.creditBalance.toLocaleString()} credits
           </p>
-          <pre className="mt-3 max-h-[60vh] overflow-auto rounded-md bg-black/50 p-3 text-xs">
-            {JSON.stringify(syncResult.result, null, 2)}
-          </pre>
+          <div className="mt-4">
+            <StructuredResultView value={syncResult.result} />
+          </div>
         </section>
       )}
 
