@@ -5,6 +5,7 @@ export default async function DashboardPage() {
   const session = await requireSession();
   const account = session.account!;
   const runs = session.recentRuns ?? [];
+  const persistence = session.persistence;
 
   return (
     <div className="space-y-8">
@@ -21,6 +22,16 @@ export default async function DashboardPage() {
         <Card title="Plan" value={account.plan} hint={account.status} />
         <Card title="Last seen" value={new Date(account.lastSeenAt).toLocaleDateString()} hint="" />
       </section>
+
+      {persistence && !persistence.durable && (
+        <section className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-5">
+          <h2 className="font-semibold text-amber-200">Ephemeral storage mode</h2>
+          <p className="mt-1 text-sm text-amber-50/80">
+            {persistence.warning ??
+              "This environment is not using fully durable storage, so credits, onboarding, or recent history may reset after a restart."}
+          </p>
+        </section>
+      )}
 
       {session.onboarding?.state === "first-run" && (
         <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
