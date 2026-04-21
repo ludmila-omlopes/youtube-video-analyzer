@@ -16,6 +16,7 @@ import { run as runLaunchConfigTests } from "./launch-config.test.js";
 import { run as runLoadDotenvTests } from "./load-dotenv.test.js";
 import { run as runOAuthHostedLoginTests } from "./oauth-hosted-login.test.js";
 import { run as runOAuthValidationTests } from "./oauth-validation.test.js";
+import { run as runPersistenceSummaryTests } from "./persistence-summary.test.js";
 import { run as runPrincipalScopedLongAnalysisJobsTests } from "./principal-scoped-long-analysis-jobs.test.js";
 import { run as runPrincipalScopedServiceTests } from "./principal-scoped-service.test.js";
 import { run as runPrincipalScopedSessionStoreTests } from "./principal-scoped-session-store.test.js";
@@ -53,6 +54,7 @@ const suites = [
   ["load-dotenv", runLoadDotenvTests],
   ["oauth-hosted-login", runOAuthHostedLoginTests],
   ["oauth-validation", runOAuthValidationTests],
+  ["persistence-summary", runPersistenceSummaryTests],
   ["principal-scoped-long-analysis-jobs", runPrincipalScopedLongAnalysisJobsTests],
   ["principal-scoped-service", runPrincipalScopedServiceTests],
   ["principal-scoped-session-store", runPrincipalScopedSessionStoreTests],

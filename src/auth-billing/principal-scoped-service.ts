@@ -111,6 +111,12 @@ async function runReservedCharge<T>(params: {
   run: () => Promise<T>;
   getCompletionMetadata: (result: T) => Record<string, unknown>;
 }): Promise<T> {
+  await params.context.reportProgress?.({
+    progress: 2,
+    total: 5,
+    message: "Checking your credits.",
+  });
+
   const reserved = await reserveCreditsOrThrow(
     params.remoteAccessStore,
     params.accountId,
@@ -136,6 +142,12 @@ async function runReservedCharge<T>(params: {
 
   try {
     const result = await params.run();
+
+    await params.context.reportProgress?.({
+      progress: 5,
+      total: 5,
+      message: "Updating your account and finishing up.",
+    });
 
     await appendUsageEventSafe(params.usageEventStore, params.context, {
       accountId: params.accountId,

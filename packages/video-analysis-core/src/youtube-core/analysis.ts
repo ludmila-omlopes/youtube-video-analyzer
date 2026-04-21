@@ -811,6 +811,7 @@ export async function analyzeShortVideo(
     throw new Error("youtubeUrl must be a valid YouTube video URL.");
   }
 
+  await reportProgress(context, 3, 5, "Asking Gemini to analyze the video.");
   const analysis = await generateStructuredJson(
     ai,
     {
@@ -836,6 +837,7 @@ export async function analyzeShortVideo(
       },
       timeoutMs: GENERATION_TIMEOUT_MS,
       abortSignal: context.abortSignal,
+      onResponseReceived: () => reportProgress(context, 4, 5, "Checking Gemini's response."),
     }
   );
 
@@ -1405,6 +1407,5 @@ export async function continueLongVideoAnalysis(
     analysis,
   };
 }
-
 
 

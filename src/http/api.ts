@@ -22,6 +22,7 @@ import {
   longToolInputSchema,
   metadataToolInputSchema,
   shortToolInputSchema,
+  type ProgressUpdate,
   type AudioToolInput,
   type LongToolInput,
   type MetadataToolInput,
@@ -67,6 +68,44 @@ type ApiAccountSummary = {
   status: RemoteAccountStatus;
   creditBalance: number;
   lastSeenAt: string;
+};
+
+type ApiSuccessPayload = {
+  requestId: string;
+  result: unknown;
+  account: ApiAccountSummary;
+};
+
+type ApiErrorPayload = {
+  requestId: string;
+  error: {
+    code: string;
+    stage: string;
+    message: string;
+    retryable: boolean;
+    details: Record<string, unknown> | null;
+  };
+  account: ApiAccountSummary | null;
+};
+
+type ApiProgressEvent = {
+  type: "progress";
+  requestId: string;
+  progress: number;
+  total: number | null;
+  message: string;
+};
+
+type ApiResultEvent = {
+  type: "result";
+  payload: ApiSuccessPayload;
+};
+
+type ApiErrorEvent = {
+  type: "error";
+  status: number;
+  payload: ApiErrorPayload;
+  lastProgress: ApiProgressEvent | null;
 };
 
 type AuthenticatedApiRequest =
@@ -116,14 +155,7 @@ function createApiSuccessResponse(
   account: ApiAccountSummary,
   status = 200
 ): Response {
-  return createJsonResponse(
-    {
-      requestId,
-      result,
-      account,
-    },
-    status
-  );
+  return createJsonResponse(buildApiSuccessPayload(requestId, result, account), status);
 }
 
 function getDiagnosticStatusCode(error: DiagnosticError): number {
@@ -155,20 +187,77 @@ function createApiErrorResponse(
   diagnostic: DiagnosticError,
   account?: ApiAccountSummary
 ): Response {
-  return createJsonResponse(
-    {
-      requestId,
-      error: {
-        code: diagnostic.code,
-        stage: diagnostic.stage,
-        message: diagnostic.message,
-        retryable: diagnostic.retryable,
-        details: diagnostic.details ?? null,
-      },
-      account: account ?? null,
+  return createJsonResponse(buildApiErrorPayload(requestId, diagnostic, account), getDiagnosticStatusCode(diagnostic));
+}
+
+function buildApiSuccessPayload(
+  requestId: string,
+  result: unknown,
+  account: ApiAccountSummary
+): ApiSuccessPayload {
+  return {
+    requestId,
+    result,
+    account,
+  };
+}
+
+function buildApiErrorPayload(
+  requestId: string,
+  diagnostic: DiagnosticError,
+  account?: ApiAccountSummary
+): ApiErrorPayload {
+  return {
+    requestId,
+    error: {
+      code: diagnostic.code,
+      stage: diagnostic.stage,
+      message: diagnostic.message,
+      retryable: diagnostic.retryable,
+      details: diagnostic.details ?? null,
     },
-    getDiagnosticStatusCode(diagnostic)
-  );
+    account: account ?? null,
+  };
+}
+
+function requestWantsJsonLineStream(request: Request): boolean {
+  const accept = request.headers.get("accept");
+  return typeof accept === "string" && accept.includes("application/x-ndjson");
+}
+
+function createJsonLineStreamResponse(
+  producer: (emit: (event: ApiProgressEvent | ApiResultEvent | ApiErrorEvent) => void) => Promise<void>
+): Response {
+  const encoder = new TextEncoder();
+
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false;
+      const emit = (event: ApiProgressEvent | ApiResultEvent | ApiErrorEvent) => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
+
+      void producer(emit)
+        .catch((error) => {
+          closed = true;
+          controller.error(error);
+        })
+        .finally(() => {
+          if (!closed) {
+            controller.close();
+          }
+        });
+    },
+  });
+
+  return new Response(body, {
+    status: 200,
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "application/x-ndjson; charset=utf-8",
+      "x-accel-buffering": "no",
+    },
+  });
 }
 
 function formatZodIssuePath(issue: z.ZodIssue): string {
@@ -371,6 +460,80 @@ export function createApiMetadataHandler(options: ApiHandlerOptions = {}) {
 export function createApiShortAnalysisHandler(options: ApiHandlerOptions = {}) {
   return async function handleApiShortAnalysisRequest(request: Request): Promise<Response> {
     const logger = createRequestLogger("analyze_youtube_video");
+
+    if (requestWantsJsonLineStream(request)) {
+      return withAuthenticatedApiContext(
+        request,
+        options,
+        async ({ principal, account, remoteAccessStore, usageEventStore }) =>
+          createJsonLineStreamResponse(async (emit) => {
+            let lastProgress: ApiProgressEvent | null = null;
+
+            const emitProgress = async (update: ProgressUpdate) => {
+              lastProgress = {
+                type: "progress",
+                requestId: logger.requestId,
+                progress: update.progress,
+                total: update.total ?? null,
+                message: update.message,
+              };
+              emit(lastProgress);
+            };
+
+            await emitProgress({
+              progress: 1,
+              total: 5,
+              message: "Checking the YouTube link.",
+            });
+
+            try {
+              const input = await parseRequestBody<ShortToolInput>(
+                request,
+                shortAnalysisRequestSchema,
+                "analyze_youtube_video",
+                logger.requestId
+              );
+              const service = await createScopedApiService(
+                principal,
+                options,
+                remoteAccessStore,
+                usageEventStore
+              );
+              const result = await service.analyzeShort(input, {
+                logger,
+                tool: "analyze_youtube_video",
+                abortSignal: request.signal,
+                reportProgress: emitProgress,
+              });
+              emit({
+                type: "result",
+                payload: buildApiSuccessPayload(
+                  logger.requestId,
+                  result,
+                  await getCurrentAccountSummary(remoteAccessStore, account)
+                ),
+              });
+            } catch (error) {
+              const diagnostic = asDiagnosticError(error, {
+                tool: "analyze_youtube_video",
+                code: "SHORT_VIDEO_ANALYSIS_FAILED",
+                stage: "unknown",
+                message: "Short-video analysis failed.",
+              });
+              emit({
+                type: "error",
+                status: getDiagnosticStatusCode(diagnostic),
+                payload: buildApiErrorPayload(
+                  logger.requestId,
+                  diagnostic,
+                  await getCurrentAccountSummary(remoteAccessStore, account)
+                ),
+                lastProgress,
+              });
+            }
+          })
+      );
+    }
 
     return withAuthenticatedApiContext(request, options, async ({ principal, account, remoteAccessStore, usageEventStore }) => {
       try {
