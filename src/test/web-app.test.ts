@@ -212,7 +212,13 @@ export async function run(): Promise<void> {
           monthlyIncludedCredits: number | null;
         };
       };
-      onboarding: { state: string };
+      persistence: {
+        remoteAccessStore: string;
+        workflowRunStore: string;
+        durable: boolean;
+        warning: string | null;
+      };
+      onboarding: { state: string; nextAction?: string };
       recentRuns: Array<unknown>;
       apiKeys: Array<unknown>;
       endpoints: { apiKeys: string };
@@ -227,7 +233,12 @@ export async function run(): Promise<void> {
     assert.equal(sessionPayload.account.entitlements.apiKeysEnabled, true);
     assert.equal(sessionPayload.account.entitlements.historyRetentionDays, trialEntitlements.historyRetentionDays);
     assert.equal(sessionPayload.account.entitlements.monthlyIncludedCredits, trialEntitlements.monthlyIncludedCredits);
+    assert.equal(sessionPayload.persistence.remoteAccessStore, "memory");
+    assert.equal(sessionPayload.persistence.workflowRunStore, "memory");
+    assert.equal(sessionPayload.persistence.durable, false);
+    assert.match(sessionPayload.persistence.warning ?? "", /in-memory account storage/i);
     assert.equal(sessionPayload.onboarding.state, "first-run");
+    assert.match(sessionPayload.onboarding.nextAction ?? "", /reset after a restart/i);
     assert.equal(sessionPayload.recentRuns.length, 0);
     assert.equal(sessionPayload.apiKeys.length, 0);
     assert.equal(sessionPayload.endpoints.apiKeys, "enabled");

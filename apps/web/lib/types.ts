@@ -41,6 +41,15 @@ export type SessionResponse = {
     apiDocsUrl?: string;
     apiKeys?: "enabled" | "disabled";
   };
+  persistence?: {
+    remoteAccessStore: "memory" | "redis";
+    usageEventStore: "memory" | "redis";
+    workflowRunStore: "memory" | "redis";
+    apiKeyStore: "memory" | "redis";
+    sessionStore: "memory" | "redis";
+    durable: boolean;
+    warning?: string | null;
+  };
   onboarding?: {
     state: "ready" | "first-run";
     nextAction?: string;

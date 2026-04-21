@@ -20,6 +20,7 @@ import {
 } from "../auth-billing/index.js";
 import {
   createCloudSessionStore,
+  getWebPersistenceStatus,
   createPublicRemoteVideoAnalysisService,
   createWorkflowRunStoreFromEnv,
   type AnalysisSessionStore,
@@ -82,6 +83,7 @@ type WebSessionPayload = {
     protectedResourceMetadataUrl: string;
     apiKeys: "enabled" | "disabled";
   };
+  persistence: ReturnType<typeof getWebPersistenceStatus>;
   onboarding: {
     state: "ready" | "first-run";
     nextAction: string;
@@ -220,11 +222,19 @@ function assertApiKeysEnabled(accountPlan: RemoteAccountPlan): Response | null {
   );
 }
 
-function buildOnboardingState(recentRuns: WorkflowRunRecord[]): WebSessionPayload["onboarding"] {
+function buildOnboardingState(
+  recentRuns: WorkflowRunRecord[],
+  persistence: ReturnType<typeof getWebPersistenceStatus>
+): WebSessionPayload["onboarding"] {
   if (recentRuns.length > 0) {
+    const readyNextAction =
+      persistence.remoteAccessStore === "memory"
+        ? "Open a saved workflow run from history or analyze a new short video. This environment uses in-memory storage, so credits and history reset after a restart."
+        : "Open a saved workflow run from history or analyze a new short video.";
+
     return {
       state: "ready",
-      nextAction: "Open a saved workflow run from history or analyze a new short video.",
+      nextAction: readyNextAction,
       checklist: [
         "Account is active",
         "Workflow history is available",
@@ -233,13 +243,21 @@ function buildOnboardingState(recentRuns: WorkflowRunRecord[]): WebSessionPayloa
     };
   }
 
+  const firstRunNextAction =
+    persistence.remoteAccessStore === "memory"
+      ? "Paste a public YouTube URL and run a short video analysis from the app. This environment uses in-memory storage, so credits, onboarding, and recent runs reset after a restart unless REDIS_URL is configured."
+      : "Paste a public YouTube URL and run a short video analysis from the app.";
+
   return {
     state: "first-run",
-    nextAction: "Paste a public YouTube URL and run a short video analysis from the app.",
+    nextAction: firstRunNextAction,
     checklist: [
       "Sign in or continue in local mode",
       "Paste a public YouTube URL",
       "Run short video analysis",
+      ...(persistence.remoteAccessStore === "memory"
+        ? ["Configure REDIS_URL for durable credits and workflow history"]
+        : []),
     ],
   };
 }
@@ -325,6 +343,7 @@ function toSessionPayload(
   recentUsageEvents: Awaited<ReturnType<UsageEventStore["listForAccount"]>>,
   recentRuns: WorkflowRunRecord[],
   apiKeys: ApiKeyRecord[],
+  persistence: ReturnType<typeof getWebPersistenceStatus>,
   resourceName: string,
   requiredScope: string | null
 ): WebSessionPayload {
@@ -356,7 +375,8 @@ function toSessionPayload(
       protectedResourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(request),
       apiKeys: apiKeysAvailability(entitlements),
     },
-    onboarding: buildOnboardingState(recentRuns),
+    persistence,
+    onboarding: buildOnboardingState(recentRuns, persistence),
     recentUsageEvents,
     recentRuns,
     apiKeys,
@@ -395,6 +415,7 @@ export function createWebSessionHandler(options: WebAppHandlerOptions = {}) {
         workflowRunStore.listRunsForAccount(account.accountId, 8),
         apiKeyStore.listApiKeys(account.accountId),
       ]);
+      const persistence = getWebPersistenceStatus();
       const visibleUsageEvents = filterUsageEventsForHistory(account.plan, recentUsageEvents).slice(0, 12);
       const visibleRuns = filterWorkflowRunsForHistory(account.plan, recentRuns);
 
@@ -407,6 +428,7 @@ export function createWebSessionHandler(options: WebAppHandlerOptions = {}) {
           visibleUsageEvents,
           visibleRuns,
           apiKeys,
+          persistence,
           auth.config.resourceName,
           auth.config.enabled ? auth.config.requiredScope : null
         )
