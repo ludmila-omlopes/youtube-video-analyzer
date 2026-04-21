@@ -79,8 +79,12 @@ export type LongJobResponse = {
   result: {
     jobId: string;
     status: "queued" | "running" | "completed" | "failed" | "cancelled";
-    progress?: number;
-    output?: unknown;
+    progress?: {
+      progress: number | null;
+      total: number | null;
+      message: string | null;
+    } | null;
+    result?: unknown;
     error?: { code: string; message: string } | null;
   };
   account: AnalyzeResponse["account"];

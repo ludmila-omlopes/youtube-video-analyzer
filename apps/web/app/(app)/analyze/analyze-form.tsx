@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { browserFetch, BrowserApiError } from "@/lib/api-client.browser";
+import { StructuredResultView } from "@/components/structured-result-view";
 import type { AnalyzeResponse, LongJobResponse } from "@/lib/types";
 import { LongJobPoller } from "@/components/long-job-poller";
 
@@ -16,10 +17,10 @@ const KIND_ENDPOINTS: Record<AnalysisKind, string> = {
 };
 
 const KIND_COPY: Record<AnalysisKind, { title: string; hint: string }> = {
-  metadata: { title: "Metadata", hint: "Basic video info — cheapest." },
+  metadata: { title: "Metadata", hint: "Basic video info - cheapest." },
   short: { title: "Short analysis", hint: "For clips under ~10 minutes." },
   audio: { title: "Audio analysis", hint: "Transcript + audio-focused insights." },
-  long: { title: "Long-form job", hint: "Queued — may take minutes." },
+  long: { title: "Long-form job", hint: "Queued - may take minutes." },
 };
 
 export function AnalyzeForm() {
@@ -66,7 +67,7 @@ export function AnalyzeForm() {
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.youtube.com/watch?v=…"
+          placeholder="https://www.youtube.com/watch?v=..."
           className="mt-1 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 outline-none focus:border-[var(--accent)]"
         />
 
@@ -107,7 +108,7 @@ export function AnalyzeForm() {
           disabled={submit.isPending || !url}
           className="mt-5 rounded-md bg-[var(--accent)] px-5 py-2 font-medium text-white hover:opacity-90 disabled:opacity-60"
         >
-          {submit.isPending ? "Submitting…" : `Run ${KIND_COPY[kind].title.toLowerCase()}`}
+          {submit.isPending ? "Submitting..." : `Run ${KIND_COPY[kind].title.toLowerCase()}`}
         </button>
 
         {err && (
@@ -127,12 +128,12 @@ export function AnalyzeForm() {
         <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="font-semibold">Result</h2>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            request <code>{syncResult.requestId}</code> · balance now{" "}
+            request <code>{syncResult.requestId}</code> - balance now{" "}
             {syncResult.account.creditBalance.toLocaleString()} credits
           </p>
-          <pre className="mt-3 max-h-[60vh] overflow-auto rounded-md bg-black/50 p-3 text-xs">
-            {JSON.stringify(syncResult.result, null, 2)}
-          </pre>
+          <div className="mt-4">
+            <StructuredResultView value={syncResult.result} />
+          </div>
         </section>
       )}
 

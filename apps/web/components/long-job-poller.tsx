@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+
 import { browserFetch } from "@/lib/api-client.browser";
+import { StructuredResultView } from "@/components/structured-result-view";
 import type { LongJobResponse } from "@/lib/types";
 
 export function LongJobPoller({ jobId }: { jobId: string }) {
@@ -10,7 +12,10 @@ export function LongJobPoller({ jobId }: { jobId: string }) {
     queryFn: () => browserFetch<LongJobResponse>(`/api/v1/long-jobs/${jobId}`),
     refetchInterval: (q) => {
       const status = q.state.data?.result.status;
-      if (status === "completed" || status === "failed" || status === "cancelled") return false;
+      if (status === "completed" || status === "failed" || status === "cancelled") {
+        return false;
+      }
+
       return 2_500;
     },
   });
@@ -25,6 +30,8 @@ export function LongJobPoller({ jobId }: { jobId: string }) {
 
   const job = data?.result;
   const status = job?.status ?? "queued";
+  const progressValue = job?.progress?.progress;
+  const progressMessage = job?.progress?.message;
 
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-5">
@@ -32,15 +39,20 @@ export function LongJobPoller({ jobId }: { jobId: string }) {
         <h2 className="font-semibold">Long job</h2>
         <span className={`text-xs font-medium ${statusColor(status)}`}>{status.toUpperCase()}</span>
       </div>
+
       <p className="mt-1 text-xs text-[var(--muted)]">
         job <code>{jobId}</code>
-        {typeof job?.progress === "number" && ` · progress ${Math.round(job.progress * 100)}%`}
+        {typeof progressValue === "number" && ` - progress ${Math.round(progressValue * 100)}%`}
       </p>
 
-      {status === "completed" && job?.output != null && (
-        <pre className="mt-3 max-h-[60vh] overflow-auto rounded-md bg-black/50 p-3 text-xs">
-          {JSON.stringify(job.output, null, 2)}
-        </pre>
+      {progressMessage && status !== "completed" && (
+        <p className="mt-2 text-sm text-[var(--muted)]">{progressMessage}</p>
+      )}
+
+      {status === "completed" && job?.result != null && (
+        <div className="mt-4">
+          <StructuredResultView value={job.result} />
+        </div>
       )}
 
       {status === "failed" && job?.error && (
@@ -54,7 +66,7 @@ export function LongJobPoller({ jobId }: { jobId: string }) {
         <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[var(--bg)]">
           <div
             className="h-full bg-[var(--accent)] transition-all"
-            style={{ width: `${Math.max(5, Math.round((job?.progress ?? 0) * 100))}%` }}
+            style={{ width: `${Math.max(5, Math.round((progressValue ?? 0) * 100))}%` }}
           />
         </div>
       )}
@@ -62,8 +74,8 @@ export function LongJobPoller({ jobId }: { jobId: string }) {
   );
 }
 
-function statusColor(s: string) {
-  switch (s) {
+function statusColor(status: string) {
+  switch (status) {
     case "completed":
       return "text-emerald-400";
     case "failed":

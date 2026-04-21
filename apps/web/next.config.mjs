@@ -7,6 +7,8 @@ const nextConfig = {
     return [
       { source: "/api/web/:path*", destination: `${BACKEND_URL}/api/web/:path*` },
       { source: "/api/v1/:path*", destination: `${BACKEND_URL}/api/v1/:path*` },
+      { source: "/admin/api/:path*", destination: `${BACKEND_URL}/admin/api/:path*` },
+      { source: "/admin/console", destination: `${BACKEND_URL}/admin/console` },
       { source: "/login", destination: `${BACKEND_URL}/login` },
       { source: "/logout", destination: `${BACKEND_URL}/logout` },
       { source: "/oauth/callback", destination: `${BACKEND_URL}/oauth/callback` },
