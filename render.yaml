@@ -48,7 +48,7 @@ services:
       - key: OAUTH_WEB_TOKEN_URL
         sync: false
       - key: OAUTH_WEB_REDIRECT_PATH
-        value: /app
+        value: /oauth/callback
       - key: OAUTH_WEB_SCOPES
         value: openid profile mcp:access
       - key: OAUTH_WEB_AUDIENCE

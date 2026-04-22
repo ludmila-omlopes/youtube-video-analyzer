@@ -58,4 +58,16 @@ export async function run(): Promise<void> {
       process.env.OAUTH_WEB_REDIRECT_PATH = previous;
     }
   }
+
+  try {
+    process.env.OAUTH_WEB_REDIRECT_PATH = "/app";
+    assert.equal(oauthCallbackPathMatches("/oauth/callback"), true);
+    assert.equal(oauthCallbackPathMatches("/app"), false);
+  } finally {
+    if (previous === undefined) {
+      delete process.env.OAUTH_WEB_REDIRECT_PATH;
+    } else {
+      process.env.OAUTH_WEB_REDIRECT_PATH = previous;
+    }
+  }
 }

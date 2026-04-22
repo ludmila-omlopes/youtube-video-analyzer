@@ -35,7 +35,7 @@ Required env:
 Recommended:
 
 - `OAUTH_REQUIRED_SCOPE=mcp:access`
-- `OAUTH_WEB_REDIRECT_PATH=/app`
+- `OAUTH_WEB_REDIRECT_PATH=/oauth/callback`
 - `OAUTH_WEB_SCOPES=openid profile mcp:access`
 - `OAUTH_WEB_AUDIENCE`
 - `OAUTH_WEB_RESOURCE`
@@ -70,9 +70,9 @@ Recommended:
 Run these after Render reports healthy services.
 
 1. Open `/healthz` on the web service and confirm `{ "ok": true }`.
-2. Open `/app` and confirm the browser auth flow loads instead of a local dev bypass.
+2. Open `/dashboard` and confirm the browser auth flow loads instead of a local dev bypass.
 3. Complete sign-in and verify `/api/web/session` returns an authenticated account payload.
-4. Create an API key from `/app`.
+4. Create an API key from the dashboard.
 5. Call `POST /api/v1/metadata` with the bearer token or API key.
 6. Call `POST /api/v1/analyze/short` and confirm credits settle correctly.
 7. Call `POST /api/v1/analyze/audio` and confirm credits settle correctly.
@@ -90,7 +90,7 @@ Before inviting external users:
 - Verify trial entitlements and initial credits look correct.
 - Change that account to `builder` or `pro` from the admin API.
 - Grant extra credits manually and confirm the ledger records the event.
-- Verify the same account balance appears consistently in `/app` and `/api/v1/*`.
+- Verify the same account balance appears consistently in `/dashboard` and `/api/v1/*`.
 - Confirm a failed long job releases its reservation.
 
 ## Launch Decision
@@ -98,7 +98,7 @@ Before inviting external users:
 You are ready for a hosted beta when all of the following are true:
 
 - web, worker, and admin boot cleanly with production secrets
-- `/app` and `/api/v1/*` require authenticated access (or explicit local-dev bypass only when configured)
+- `/dashboard` and `/api/v1/*` require authenticated access (or explicit local-dev bypass only when configured)
 - Redis-backed durability is active for hosted state
 - long jobs complete through the worker and settle credits correctly
 - admin plan changes and credit grants work without direct datastore edits
