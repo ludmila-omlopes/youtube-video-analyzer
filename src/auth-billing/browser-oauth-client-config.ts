@@ -25,6 +25,23 @@ function parseScopes(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+function isLegacyAppRedirectPath(pathname: string): boolean {
+  return pathname.replace(/\/+$/, "") === "/app";
+}
+
+function normalizeRedirectPath(value: string | undefined): string {
+  const redirectPath = readTrimmedEnv(value) ?? "/oauth/callback";
+  if (!redirectPath.startsWith("/")) {
+    return "/oauth/callback";
+  }
+
+  if (isLegacyAppRedirectPath(redirectPath)) {
+    return "/oauth/callback";
+  }
+
+  return redirectPath;
+}
+
 export type DisabledBrowserOAuthClientConfig = {
   enabled: false;
   reason: "not_configured" | "incomplete_config";
@@ -59,10 +76,7 @@ export function getBrowserOAuthClientConfig(
   const authorizationUrl = readTrimmedEnv(env.OAUTH_WEB_AUTHORIZATION_URL);
   const tokenUrl = readTrimmedEnv(env.OAUTH_WEB_TOKEN_URL);
   const clientId = readTrimmedEnv(env.OAUTH_WEB_CLIENT_ID);
-  let redirectPath = readTrimmedEnv(env.OAUTH_WEB_REDIRECT_PATH) ?? "/oauth/callback";
-  if (!redirectPath.startsWith("/")) {
-    redirectPath = "/oauth/callback";
-  }
+  const redirectPath = normalizeRedirectPath(env.OAUTH_WEB_REDIRECT_PATH);
   const scopes = parseScopes(readTrimmedEnv(env.OAUTH_WEB_SCOPES) ?? readTrimmedEnv(env.OAUTH_REQUIRED_SCOPE));
   const apiAudience = readTrimmedEnv(env.OAUTH_AUDIENCE) ?? null;
   const audience = readTrimmedEnv(env.OAUTH_WEB_AUDIENCE) ?? apiAudience;

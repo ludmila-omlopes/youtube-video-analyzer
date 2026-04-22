@@ -64,6 +64,18 @@ export async function run(): Promise<void> {
   assert.equal(audienceFromOAuthAudience.audience, "https://youtube-video-analyzer.onrender.com/");
   assert.equal(audienceFromOAuthAudience.resource, "https://youtube-video-analyzer.onrender.com/");
 
+  const legacyAppRedirect = getBrowserOAuthClientConfig({
+    OAUTH_WEB_CLIENT_ID: "client-1",
+    OAUTH_WEB_AUTHORIZATION_URL: "https://issuer.example.com/authorize",
+    OAUTH_WEB_TOKEN_URL: "https://issuer.example.com/oauth/token",
+    OAUTH_WEB_REDIRECT_PATH: "/app",
+  });
+  assert.equal(legacyAppRedirect.enabled, true);
+  if (!legacyAppRedirect.enabled) {
+    throw new Error("Expected enabled browser OAuth config.");
+  }
+  assert.equal(legacyAppRedirect.redirectPath, "/oauth/callback");
+
   const badUrls = getBrowserOAuthClientConfig({
     OAUTH_WEB_CLIENT_ID: "client-1",
     OAUTH_WEB_AUTHORIZATION_URL: "not-a-valid-url",
