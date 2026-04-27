@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import {
   getPrincipalKey,
   getRemoteAccountInitialCredits,
-  InMemoryApiKeyStore,
   InMemoryRemoteAccessStore,
   InMemoryUsageEventStore,
   type AuthPrincipal,
@@ -170,27 +169,23 @@ export async function run(): Promise<void> {
   {
     const remoteAccessStore = new InMemoryRemoteAccessStore();
     const usageEventStore = new InMemoryUsageEventStore();
-    const apiKeyStore = new InMemoryApiKeyStore();
     const authenticateRequest = createLocalAuth();
 
     const metadataHandler = createApiMetadataHandler({
       remoteAccessStore,
       usageEventStore,
-      apiKeyStore,
       service: new FakeApiService(),
       authenticateRequest,
     });
     const shortHandler = createApiShortAnalysisHandler({
       remoteAccessStore,
       usageEventStore,
-      apiKeyStore,
       service: new FakeApiService(),
       authenticateRequest,
     });
     const audioHandler = createApiAudioAnalysisHandler({
       remoteAccessStore,
       usageEventStore,
-      apiKeyStore,
       service: new FakeApiService(),
       authenticateRequest,
     });

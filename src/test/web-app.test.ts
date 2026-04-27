@@ -3,16 +3,12 @@ import assert from "node:assert/strict";
 import {
   getRemoteAccountEntitlements,
   getRemoteAccountInitialCredits,
-  InMemoryApiKeyStore,
   InMemoryRemoteAccessStore,
   InMemoryUsageEventStore,
   type AuthPrincipal,
   type OAuthConfig,
 } from "../auth-billing/index.js";
 import {
-  createApiKeysCreateHandler,
-  createApiKeysListHandler,
-  createApiKeysRevokeHandler,
   createMonetizationScanHandler,
   createWebSessionHandler,
 } from "../http/web-app.js";
@@ -163,7 +159,6 @@ export async function run(): Promise<void> {
     const remoteAccessStore = new InMemoryRemoteAccessStore();
     const usageEventStore = new InMemoryUsageEventStore();
     const workflowRunStore = new InMemoryWorkflowRunStore();
-    const apiKeyStore = new InMemoryApiKeyStore();
     const auth = async () => ({
       ok: true as const,
       principal,
@@ -196,7 +191,6 @@ export async function run(): Promise<void> {
       remoteAccessStore,
       usageEventStore,
       workflowRunStore,
-      apiKeyStore,
       authenticateRequest: auth,
     });
     const sessionResponse = await sessionHandler(new Request("https://example.com/api/web/session"));
@@ -220,8 +214,7 @@ export async function run(): Promise<void> {
       };
       onboarding: { state: string; nextAction?: string };
       recentRuns: Array<unknown>;
-      apiKeys: Array<unknown>;
-      endpoints: { apiKeys: string };
+      endpoints: Record<string, unknown>;
     };
 
     assert.equal(sessionResponse.status, 200);
@@ -240,60 +233,11 @@ export async function run(): Promise<void> {
     assert.equal(sessionPayload.onboarding.state, "first-run");
     assert.match(sessionPayload.onboarding.nextAction ?? "", /reset after a restart/i);
     assert.equal(sessionPayload.recentRuns.length, 0);
-    assert.equal(sessionPayload.apiKeys.length, 0);
-    assert.equal(sessionPayload.endpoints.apiKeys, "enabled");
-
-    const createApiKeyHandler = createApiKeysCreateHandler({
-      remoteAccessStore,
-      apiKeyStore,
-      authenticateRequest: auth,
-    });
-    const listApiKeysHandler = createApiKeysListHandler({
-      remoteAccessStore,
-      apiKeyStore,
-      authenticateRequest: auth,
-    });
-    const revokeApiKeyHandler = createApiKeysRevokeHandler({
-      remoteAccessStore,
-      apiKeyStore,
-      authenticateRequest: auth,
-    });
-
-    const createdApiKeyResponse = await createApiKeyHandler(
-      new Request("https://example.com/api/web/api-keys", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ label: "Studio workflow" }),
-      })
-    );
-    const createdApiKeyPayload = (await createdApiKeyResponse.json()) as {
-      plaintextKey: string;
-      record: { keyId: string; label: string };
-    };
-    assert.equal(createdApiKeyResponse.status, 201);
-    assert.match(createdApiKeyPayload.plaintextKey, /^ya_live_/);
-    assert.equal(createdApiKeyPayload.record.label, "Studio workflow");
-
-    const listedApiKeysResponse = await listApiKeysHandler(new Request("https://example.com/api/web/api-keys"));
-    const listedApiKeysPayload = (await listedApiKeysResponse.json()) as {
-      apiKeys: Array<{ keyId: string; label: string }>;
-    };
-    assert.equal(listedApiKeysPayload.apiKeys.length, 1);
-    assert.equal(listedApiKeysPayload.apiKeys[0].keyId, createdApiKeyPayload.record.keyId);
-
-    const revokedApiKeyResponse = await revokeApiKeyHandler(
-      new Request(`https://example.com/api/web/api-keys?keyId=${createdApiKeyPayload.record.keyId}`, {
-        method: "DELETE",
-      })
-    );
-    const revokedApiKeyPayload = (await revokedApiKeyResponse.json()) as { revoked: boolean };
-    assert.equal(revokedApiKeyPayload.revoked, true);
 
     const scanHandler = createMonetizationScanHandler({
       remoteAccessStore,
       usageEventStore,
       workflowRunStore,
-      apiKeyStore,
       service: new FakeWebWorkflowService(),
       authenticateRequest: auth,
     });
@@ -320,14 +264,11 @@ export async function run(): Promise<void> {
     const refreshedSessionPayload = (await refreshedSessionResponse.json()) as {
       onboarding: { state: string };
       recentRuns: Array<{ workflowId: string }>;
-      apiKeys: Array<{ revokedAt: string | null }>;
     };
 
     assert.equal(refreshedSessionPayload.onboarding.state, "ready");
     assert.equal(refreshedSessionPayload.recentRuns.length, 1);
     assert.equal(refreshedSessionPayload.recentRuns[0].workflowId, "monetization-scan");
-    assert.equal(refreshedSessionPayload.apiKeys.length, 1);
-    assert.ok(refreshedSessionPayload.apiKeys[0].revokedAt);
 
     const invalidScanResponse = await scanHandler(
       new Request("https://example.com/api/web/monetization-scan", {

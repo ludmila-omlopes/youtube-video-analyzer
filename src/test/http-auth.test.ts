@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 
 import {
   getHostedAccessPolicy,
-  InMemoryApiKeyStore,
 } from "../auth-billing/index.js";
 import type { EnabledOAuthConfig, OAuthConfig } from "../lib/auth/config.js";
 import type { AuthPrincipal } from "../lib/auth/principal.js";
@@ -85,25 +84,6 @@ export async function run(): Promise<void> {
     assert.equal(protectedMisconfigured.response.status, 503);
     assert.equal(protectedPayload.error.code, "HOSTED_AUTH_CONFIGURATION_INVALID");
     assert.match(protectedPayload.error.message, /Hosted HTTP auth is protected by default/);
-  }
-
-  const apiKeyStore = new InMemoryApiKeyStore();
-  const createdApiKey = await apiKeyStore.createApiKey(principal, "API key");
-  const apiKeyAuthenticated = await authenticateWebRequest(
-    new Request("https://youtube-video-analyzer.onrender.com/api/v1/analyze/short", {
-      headers: { authorization: `ApiKey ${createdApiKey.plaintextKey}` },
-    }),
-    {
-      config: enabledConfig,
-      policy: protectedPolicy,
-      apiKeyStore,
-    }
-  );
-  assert.equal(apiKeyAuthenticated.ok, true);
-  if (apiKeyAuthenticated.ok) {
-    assert.equal(apiKeyAuthenticated.principal.subject, principal.subject);
-    assert.equal(apiKeyAuthenticated.principal.rawClaims.authMethod, "api_key");
-    assert.deepEqual(apiKeyAuthenticated.principal.audience, ["youtube-video-analyzer-web", "youtube-video-analyzer"]);
   }
 
   const missingToken = await authenticateWebRequest(request, {

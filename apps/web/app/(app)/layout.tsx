@@ -16,7 +16,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href="/dashboard" className="hover:text-white text-[var(--muted)]">Dashboard</Link>
             <Link href="/analyze" className="hover:text-white text-[var(--muted)]">Analyze</Link>
             <Link href="/history" className="hover:text-white text-[var(--muted)]">History</Link>
-            <Link href="/api-keys" className="hover:text-white text-[var(--muted)]">API Keys</Link>
             <Link href="/billing" className="hover:text-white text-[var(--muted)]">Billing</Link>
             <CreditBadge balance={session.account!.creditBalance} plan={session.account!.plan} />
             <a

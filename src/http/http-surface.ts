@@ -28,9 +28,6 @@ import {
 } from "./oauth-hosted-login.js";
 import { renderApiDocsPageHtml } from "./render-api-docs-html.js";
 import {
-  handleApiKeysCreateRequest,
-  handleApiKeysListRequest,
-  handleApiKeysRevokeRequest,
   handleMonetizationScanRequest,
   handleWebSessionRequest,
   handleWorkflowRunsRequest,
@@ -164,18 +161,6 @@ export async function handleWebMonetizationScanHttpSurfaceRequest(request: Reque
   return handleMonetizationScanRequest(request);
 }
 
-export async function handleWebApiKeysListHttpSurfaceRequest(request: Request): Promise<Response> {
-  return handleApiKeysListRequest(request);
-}
-
-export async function handleWebApiKeysCreateHttpSurfaceRequest(request: Request): Promise<Response> {
-  return handleApiKeysCreateRequest(request);
-}
-
-export async function handleWebApiKeysRevokeHttpSurfaceRequest(request: Request): Promise<Response> {
-  return handleApiKeysRevokeRequest(request);
-}
-
 export async function handleApiMetadataHttpSurfaceRequest(request: Request): Promise<Response> {
   return handleApiMetadataRequest(request);
 }
@@ -275,22 +260,6 @@ export function resolveHttpSurfaceRoute(pathname: string, method: string): HttpS
     }
 
     return methodNotAllowed(["POST"]);
-  }
-
-  if (pathname === "/api/web/api-keys") {
-    if (method === "GET") {
-      return handleWebApiKeysListHttpSurfaceRequest;
-    }
-
-    if (method === "POST") {
-      return handleWebApiKeysCreateHttpSurfaceRequest;
-    }
-
-    if (method === "DELETE") {
-      return handleWebApiKeysRevokeHttpSurfaceRequest;
-    }
-
-    return methodNotAllowed(["GET", "POST", "DELETE"]);
   }
 
   if (pathname === "/api/v1/metadata") {

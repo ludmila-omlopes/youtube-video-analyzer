@@ -9,7 +9,6 @@ Consumes the Express backend at the repo root via dev-server rewrites.
 - `/dashboard` — credit balance, recent runs, onboarding
 - `/analyze` — submit a video (metadata / short / audio / long job)
 - `/history` — past runs
-- `/api-keys` — create / list / revoke
 - `/billing` — plan + credit balance
 - `/login`, `/logout`, `/oauth/callback` — rewritten to the backend (OAuth broker)
 
@@ -40,6 +39,7 @@ npm run dev -w @ludylops/web
 
 Open `http://localhost:3001/`. Sign-in redirects through the backend at :3010
 which sets `ya_session` on the Next.js origin via the `/oauth/callback` rewrite.
+Logout returns to `/` by default so sign-out does not immediately restart OAuth.
 
 For the easiest local startup, run both together from the repo root:
 
