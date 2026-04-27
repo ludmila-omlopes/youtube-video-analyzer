@@ -1,12 +1,9 @@
 import {
   AccessTokenValidationError,
-  createApiKeyStoreFromEnv,
-  getApiKeyFromRequest,
   getHostedAccessPolicy,
   getBrowserOAuthClientConfig,
   getOAuthProtectedResourceMetadataUrl,
   type HostedAccessPolicy,
-  type ApiKeyStore,
   type BrowserOAuthClientConfig,
   type AuthPrincipal,
   type OAuthConfig,
@@ -31,7 +28,7 @@ export type AuthenticatedWebRequest =
   | {
       ok: true;
       principal: AuthPrincipal;
-      authMode: "oauth" | "local" | "api_key";
+      authMode: "oauth" | "local";
       config: OAuthConfig;
     }
   | {
@@ -42,7 +39,6 @@ export type AuthenticatedWebRequest =
 
 export type AuthenticateWebRequestOptions = {
   config?: OAuthConfig;
-  apiKeyStore?: ApiKeyStore;
   policy?: HostedAccessPolicy;
   validateBearerToken?: (
     authorizationHeader: string | null,
@@ -189,20 +185,6 @@ export async function authenticateWebRequest(
   }
 
   const config = policy.oauthConfig;
-
-  const rawApiKey = getApiKeyFromRequest(request);
-  if (rawApiKey) {
-    const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
-    const authenticatedApiKey = await apiKeyStore.authenticateApiKey(rawApiKey);
-    if (authenticatedApiKey) {
-      return {
-        ok: true,
-        principal: authenticatedApiKey.principal,
-        authMode: "api_key",
-        config,
-      };
-    }
-  }
 
   try {
     const principal = await (options.validateBearerToken ?? validateAccessToken)(

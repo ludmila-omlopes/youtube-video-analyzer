@@ -10,7 +10,7 @@ export type SessionAccount = {
 };
 
 export type SessionAuth = {
-  mode: "oauth" | "local" | "api_key";
+  mode: "oauth" | "local";
   resourceName?: string;
   issuer?: string;
   requiredScope?: string;
@@ -25,21 +25,12 @@ export type SessionAuth = {
   };
 };
 
-export type ApiKeyRecord = {
-  keyId: string;
-  label: string | null;
-  createdAt: string;
-  lastUsedAt?: string | null;
-  revokedAt?: string | null;
-};
-
 export type SessionResponse = {
   auth: SessionAuth;
   account: SessionAccount | null;
   endpoints?: {
     appUrl?: string;
     apiDocsUrl?: string;
-    apiKeys?: "enabled" | "disabled";
   };
   persistence?: {
     remoteAccessStore: "memory" | "redis";
@@ -57,7 +48,6 @@ export type SessionResponse = {
   };
   recentRuns?: RunRecord[];
   recentUsageEvents?: UsageEvent[];
-  apiKeys?: ApiKeyRecord[];
 };
 
 export type RunRecord = {

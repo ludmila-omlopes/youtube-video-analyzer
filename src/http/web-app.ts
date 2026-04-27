@@ -2,13 +2,10 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import {
-  createApiKeyStoreFromEnv,
   createPrincipalScopedService,
   createPrincipalScopedSessionStore,
   createRemoteAccessStoreFromEnv,
   createUsageEventStoreFromEnv,
-  type ApiKeyRecord,
-  type ApiKeyStore,
   getOAuthProtectedResourceMetadataUrl,
   getRemoteAccountEntitlements,
   type AuthPrincipal,
@@ -50,7 +47,6 @@ export type WebAppHandlerOptions = {
   remoteAccessStore?: RemoteAccessStore;
   usageEventStore?: UsageEventStore;
   workflowRunStore?: WorkflowRunStore;
-  apiKeyStore?: ApiKeyStore;
   authenticateRequest?: (
     request: Request,
     options?: AuthenticateWebRequestOptions
@@ -59,7 +55,7 @@ export type WebAppHandlerOptions = {
 
 type WebSessionPayload = {
   auth: {
-    mode: "oauth" | "local" | "api_key";
+    mode: "oauth" | "local";
     signedIn: boolean;
     resourceName: string;
     issuer: string | null;
@@ -81,7 +77,6 @@ type WebSessionPayload = {
     appUrl: string;
     apiDocsUrl: string;
     protectedResourceMetadataUrl: string;
-    apiKeys: "enabled" | "disabled";
   };
   persistence: ReturnType<typeof getWebPersistenceStatus>;
   onboarding: {
@@ -91,7 +86,6 @@ type WebSessionPayload = {
   };
   recentUsageEvents: Awaited<ReturnType<UsageEventStore["listForAccount"]>>;
   recentRuns: WorkflowRunRecord[];
-  apiKeys: ApiKeyRecord[];
 };
 
 type MonetizationScanRequestBody = {
@@ -99,10 +93,6 @@ type MonetizationScanRequestBody = {
   focus?: string;
   startOffsetSeconds?: number;
   endOffsetSeconds?: number;
-};
-
-type CreateApiKeyRequestBody = {
-  label?: string;
 };
 
 function createJsonResponse(payload: unknown, status = 200): Response {
@@ -159,10 +149,6 @@ function filterByIsoTimestamp<T>(
   });
 }
 
-function apiKeysAvailability(entitlements: RemoteAccountEntitlements): "enabled" | "disabled" {
-  return entitlements.apiKeysEnabled ? "enabled" : "disabled";
-}
-
 function filterUsageEventsForHistory(
   accountPlan: RemoteAccountPlan,
   usageEvents: Awaited<ReturnType<UsageEventStore["listForAccount"]>>
@@ -211,17 +197,6 @@ function monetizationScanErrorHttpStatus(code: string): number {
   }
 }
 
-function assertApiKeysEnabled(accountPlan: RemoteAccountPlan): Response | null {
-  if (getRemoteAccountEntitlements(accountPlan).apiKeysEnabled) {
-    return null;
-  }
-
-  return createEntitlementErrorResponse(
-    "API_KEYS_NOT_ENABLED",
-    "API keys are not enabled for this account plan."
-  );
-}
-
 function buildOnboardingState(
   recentRuns: WorkflowRunRecord[],
   persistence: ReturnType<typeof getWebPersistenceStatus>
@@ -238,7 +213,7 @@ function buildOnboardingState(
       checklist: [
         "Account is active",
         "Workflow history is available",
-        "Premium hosted workflows and API access are available",
+        "Premium hosted workflows are available",
       ],
     };
   }
@@ -304,17 +279,6 @@ function parseMonetizationScanBody(value: unknown): MonetizationScanRequestBody 
   };
 }
 
-function parseCreateApiKeyBody(value: unknown): CreateApiKeyRequestBody {
-  const body = asObject(value);
-  if (!body) {
-    return {};
-  }
-
-  return {
-    label: typeof body.label === "string" && body.label.trim() ? body.label.trim() : undefined,
-  };
-}
-
 async function createScopedWebService(
   principal: AuthPrincipal,
   options: WebAppHandlerOptions,
@@ -337,12 +301,11 @@ async function createScopedWebService(
 
 function toSessionPayload(
   request: Request,
-  authMode: "oauth" | "local" | "api_key",
+  authMode: "oauth" | "local",
   principal: AuthPrincipal,
   account: Awaited<ReturnType<RemoteAccessStore["upsertAccount"]>>,
   recentUsageEvents: Awaited<ReturnType<UsageEventStore["listForAccount"]>>,
   recentRuns: WorkflowRunRecord[],
-  apiKeys: ApiKeyRecord[],
   persistence: ReturnType<typeof getWebPersistenceStatus>,
   resourceName: string,
   requiredScope: string | null
@@ -373,13 +336,11 @@ function toSessionPayload(
       appUrl: getAppUrl(request),
       apiDocsUrl: getApiDocsUrl(request),
       protectedResourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(request),
-      apiKeys: apiKeysAvailability(entitlements),
     },
     persistence,
     onboarding: buildOnboardingState(recentRuns, persistence),
     recentUsageEvents,
     recentRuns,
-    apiKeys,
   };
 }
 
@@ -398,22 +359,18 @@ export function createWebSessionHandler(options: WebAppHandlerOptions = {}) {
   const remoteAccessStore = options.remoteAccessStore ?? createRemoteAccessStoreFromEnv();
   const usageEventStore = options.usageEventStore ?? createUsageEventStoreFromEnv();
   const workflowRunStore = options.workflowRunStore ?? createWorkflowRunStoreFromEnv();
-  const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
 
   return async function handleWebSessionRequest(request: Request): Promise<Response> {
     try {
-      const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
-        apiKeyStore,
-      });
+      const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request);
       if (!auth.ok) {
         return auth.response;
       }
 
       const account = await remoteAccessStore.upsertAccount(auth.principal);
-      const [recentUsageEvents, recentRuns, apiKeys] = await Promise.all([
+      const [recentUsageEvents, recentRuns] = await Promise.all([
         usageEventStore.listForAccount(account.accountId),
         workflowRunStore.listRunsForAccount(account.accountId, 8),
-        apiKeyStore.listApiKeys(account.accountId),
       ]);
       const persistence = getWebPersistenceStatus();
       const visibleUsageEvents = filterUsageEventsForHistory(account.plan, recentUsageEvents).slice(0, 12);
@@ -427,7 +384,6 @@ export function createWebSessionHandler(options: WebAppHandlerOptions = {}) {
           account,
           visibleUsageEvents,
           visibleRuns,
-          apiKeys,
           persistence,
           auth.config.resourceName,
           auth.config.enabled ? auth.config.requiredScope : null
@@ -457,12 +413,9 @@ export function createWebSessionHandler(options: WebAppHandlerOptions = {}) {
 export function createWorkflowRunsHandler(options: WebAppHandlerOptions = {}) {
   const remoteAccessStore = options.remoteAccessStore ?? createRemoteAccessStoreFromEnv();
   const workflowRunStore = options.workflowRunStore ?? createWorkflowRunStoreFromEnv();
-  const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
 
   return async function handleWorkflowRunsRequest(request: Request): Promise<Response> {
-    const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
-      apiKeyStore,
-    });
+    const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request);
     if (!auth.ok) {
       return auth.response;
     }
@@ -473,106 +426,13 @@ export function createWorkflowRunsHandler(options: WebAppHandlerOptions = {}) {
   };
 }
 
-export function createApiKeysListHandler(options: WebAppHandlerOptions = {}) {
-  const remoteAccessStore = options.remoteAccessStore ?? createRemoteAccessStoreFromEnv();
-  const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
-
-  return async function handleApiKeysListRequest(request: Request): Promise<Response> {
-    const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
-      apiKeyStore,
-    });
-    if (!auth.ok) {
-      return auth.response;
-    }
-
-    const account = await remoteAccessStore.upsertAccount(auth.principal);
-    const apiKeysDisabledResponse = assertApiKeysEnabled(account.plan);
-    if (apiKeysDisabledResponse) {
-      return apiKeysDisabledResponse;
-    }
-
-    const apiKeys = await apiKeyStore.listApiKeys(account.accountId);
-    return createJsonResponse({ apiKeys });
-  };
-}
-
-export function createApiKeysCreateHandler(options: WebAppHandlerOptions = {}) {
-  const remoteAccessStore = options.remoteAccessStore ?? createRemoteAccessStoreFromEnv();
-  const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
-
-  return async function handleApiKeysCreateRequest(request: Request): Promise<Response> {
-    const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
-      apiKeyStore,
-    });
-    if (!auth.ok) {
-      return auth.response;
-    }
-
-    let body: CreateApiKeyRequestBody;
-    try {
-      body = parseCreateApiKeyBody(await request.json());
-    } catch {
-      body = {};
-    }
-
-    const account = await remoteAccessStore.upsertAccount(auth.principal);
-    const apiKeysDisabledResponse = assertApiKeysEnabled(account.plan);
-    if (apiKeysDisabledResponse) {
-      return apiKeysDisabledResponse;
-    }
-
-    const created = await apiKeyStore.createApiKey(auth.principal, body.label ?? "Programmatic key");
-    return createJsonResponse(created, 201);
-  };
-}
-
-export function createApiKeysRevokeHandler(options: WebAppHandlerOptions = {}) {
-  const remoteAccessStore = options.remoteAccessStore ?? createRemoteAccessStoreFromEnv();
-  const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
-
-  return async function handleApiKeysRevokeRequest(request: Request): Promise<Response> {
-    const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
-      apiKeyStore,
-    });
-    if (!auth.ok) {
-      return auth.response;
-    }
-
-    const url = new URL(request.url);
-    const keyId = url.searchParams.get("keyId")?.trim() ?? "";
-    if (!keyId) {
-      return createJsonResponse(
-        {
-          error: {
-            code: "API_KEY_ID_REQUIRED",
-            message: "keyId query parameter is required.",
-          },
-        },
-        400
-      );
-    }
-
-    const account = await remoteAccessStore.upsertAccount(auth.principal);
-    const apiKeysDisabledResponse = assertApiKeysEnabled(account.plan);
-    if (apiKeysDisabledResponse) {
-      return apiKeysDisabledResponse;
-    }
-
-    const revoked = await apiKeyStore.revokeApiKey(account.accountId, keyId);
-    return createJsonResponse({ revoked });
-  };
-}
-
 export function createMonetizationScanHandler(options: WebAppHandlerOptions = {}) {
   const remoteAccessStore = options.remoteAccessStore ?? createRemoteAccessStoreFromEnv();
   const usageEventStore = options.usageEventStore ?? createUsageEventStoreFromEnv();
   const workflowRunStore = options.workflowRunStore ?? createWorkflowRunStoreFromEnv();
-  const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
 
   return async function handleMonetizationScanRequest(request: Request): Promise<Response> {
-    const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
-      apiKeyStore,
-    });
+    const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request);
     if (!auth.ok) {
       return auth.response;
     }
@@ -707,6 +567,3 @@ export const handleWebAppPageRequest = createWebAppPageHandler();
 export const handleWebSessionRequest = createWebSessionHandler();
 export const handleWorkflowRunsRequest = createWorkflowRunsHandler();
 export const handleMonetizationScanRequest = createMonetizationScanHandler();
-export const handleApiKeysListRequest = createApiKeysListHandler();
-export const handleApiKeysCreateRequest = createApiKeysCreateHandler();
-export const handleApiKeysRevokeRequest = createApiKeysRevokeHandler();

@@ -4,7 +4,6 @@ import {
   AccessTokenValidationError,
   getHostedAccessPolicy,
   getOAuthConfig,
-  InMemoryApiKeyStore,
   type AuthPrincipal,
   type EnabledOAuthConfig,
 } from "../auth-billing/index.js";
@@ -70,26 +69,6 @@ export async function run(): Promise<void> {
       oauthConfig: enabledConfig,
       allowUnauthenticatedHostedDev: false,
     });
-    const apiKeyStore = new InMemoryApiKeyStore();
-    const created = await apiKeyStore.createApiKey(principal, "Script key");
-
-    const apiKeyRequest = await authenticateWebRequest(
-      new Request("https://youtube-video-analyzer.onrender.com/api/web/session", {
-        headers: { "x-api-key": created.plaintextKey },
-      }),
-      {
-        config: enabledConfig,
-        policy: protectedPolicy,
-        apiKeyStore,
-      }
-    );
-
-    assert.equal(apiKeyRequest.ok, true);
-    if (!apiKeyRequest.ok) {
-      throw new Error("Expected API key auth to succeed.");
-    }
-    assert.equal(apiKeyRequest.authMode, "api_key");
-    assert.equal(apiKeyRequest.principal.subject, principal.subject);
 
     const bearerRequest = await authenticateWebRequest(
       new Request("https://youtube-video-analyzer.onrender.com/api/web/session", {

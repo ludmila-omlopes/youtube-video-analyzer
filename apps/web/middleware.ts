@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = process.env.OAUTH_HOSTED_ACCESS_COOKIE ?? "ya_session";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/analyze", "/history", "/api-keys", "/billing"];
+const PROTECTED_PREFIXES = ["/dashboard", "/analyze", "/history", "/billing"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -22,5 +22,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/analyze/:path*", "/history/:path*", "/api-keys/:path*", "/billing/:path*"],
+  matcher: ["/dashboard/:path*", "/analyze/:path*", "/history/:path*", "/billing/:path*"],
 };

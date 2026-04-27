@@ -194,7 +194,7 @@
 
       <div id="state-signin" class="banner" style="display: none">
         <strong>Sign in required.</strong>
-        <span id="signin-msg"> Use your account to view credits and API activity.</span>
+        <span id="signin-msg"> Use your account to view credits and analysis activity.</span>
         <div class="row-actions">
           <a class="btn primary" href="/login" style="text-decoration: none; display: inline-block">Continue to sign in</a>
         </div>
@@ -216,11 +216,10 @@
 
         <div class="card">
           <h2>HTTP API</h2>
-          <p class="meta" style="margin: 0 0 8px">Use the bearer token from your IdP or an API key below. Base path for versioned routes:</p>
+          <p class="meta" style="margin: 0 0 8px">Use the bearer token from your IdP for versioned routes. Base path:</p>
           <code id="api-base-path">/api/v1</code>
           <p class="meta" style="margin-top: 12px">
-            Browser sessions use a cookie; programmatic clients should send <code>Authorization: Bearer …</code> or
-            <code>x-api-key</code>.
+            Browser sessions use a cookie; programmatic clients should send <code>Authorization: Bearer …</code>.
           </p>
           <p class="meta" style="margin-top: 12px">
             Full route and auth summary:
@@ -266,37 +265,6 @@
           <p class="empty" id="runs-empty" style="display: none">No workflow runs recorded.</p>
         </div>
 
-        <div class="card" id="keys-card" style="display: none">
-          <h2>API keys</h2>
-          <p class="meta" style="margin-top: 0">Create keys for scripts and API clients. Store secrets safely; they are only shown once.</p>
-          <div class="row-actions">
-            <input id="key-label" type="text" placeholder="Label (optional)" style="flex: 1; min-width: 160px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--text)" />
-            <button type="button" class="btn primary" id="key-create">Create key</button>
-          </div>
-          <div id="key-new-wrap" style="display: none; margin-top: 16px">
-            <strong style="color: var(--good)">New key (copy now)</strong>
-            <div class="key-plain" id="key-new-plain"></div>
-          </div>
-          <div style="overflow-x: auto; margin-top: 18px">
-            <table>
-              <thead>
-                <tr>
-                  <th>Label</th>
-                  <th>Prefix</th>
-                  <th>Created</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="keys-body"></tbody>
-            </table>
-          </div>
-          <p class="empty" id="keys-empty" style="display: none">No API keys yet.</p>
-        </div>
-
-        <div class="card" id="keys-locked" style="display: none">
-          <h2>API keys</h2>
-          <p class="meta">API keys are not enabled for your current plan.</p>
-        </div>
       </div>
 
       <div id="state-error" class="banner bad" style="display: none"></div>
@@ -376,62 +344,6 @@
         }
       }
 
-      function renderKeys(keys) {
-        const body = $("keys-body");
-        const empty = $("keys-empty");
-        body.innerHTML = "";
-        if (!keys?.length) {
-          empty.style.display = "block";
-          return;
-        }
-        empty.style.display = "none";
-        for (const k of keys) {
-          if (k.revokedAt) continue;
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${escapeHtml(k.label || "")}</td>
-            <td><code>${escapeHtml(k.prefix || "")}</code></td>
-            <td>${escapeHtml(k.createdAt || "")}</td>
-            <td><button type="button" class="btn danger btn-revoke" data-key-id="${escapeHtml(k.keyId)}">Revoke</button></td>`;
-          body.appendChild(tr);
-        }
-        for (const btn of body.querySelectorAll(".btn-revoke")) {
-          btn.addEventListener("click", async () => {
-            const keyId = btn.getAttribute("data-key-id");
-            if (!keyId || !confirm("Revoke this API key?")) return;
-            const r = await fetch(`/api/web/api-keys?keyId=${encodeURIComponent(keyId)}`, {
-              method: "DELETE",
-              credentials: "include",
-            });
-            if (!r.ok) {
-              alert("Could not revoke key.");
-              return;
-            }
-            await load();
-          });
-        }
-      }
-
-      async function createKey() {
-        const label = $("key-label").value.trim();
-        $("key-new-wrap").style.display = "none";
-        const r = await fetch("/api/web/api-keys", {
-          method: "POST",
-          credentials: "include",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(label ? { label } : {}),
-        });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) {
-          alert(data?.error?.message || "Could not create key.");
-          return;
-        }
-        $("key-new-plain").textContent = data.plaintextKey || "";
-        $("key-new-wrap").style.display = "block";
-        $("key-label").value = "";
-        await load();
-      }
-
       async function load() {
         const { response, payload } = await fetchSession();
 
@@ -483,19 +395,8 @@
         renderUsage(payload.recentUsageEvents);
         renderRuns(payload.recentRuns);
 
-        if (payload.endpoints?.apiKeys === "enabled") {
-          $("keys-card").style.display = "block";
-          $("keys-locked").style.display = "none";
-          renderKeys(payload.apiKeys);
-        } else {
-          $("keys-card").style.display = "none";
-          $("keys-locked").style.display = "block";
-        }
-
         $("state-main").style.display = "grid";
       }
-
-      $("key-create").addEventListener("click", createKey);
 
       const params = new URLSearchParams(window.location.search);
       if (params.get("signed_in") === "1") {

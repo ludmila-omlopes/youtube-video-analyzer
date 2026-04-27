@@ -1,13 +1,11 @@
 import { z } from "zod";
 
 import {
-  createApiKeyStoreFromEnv,
   createPrincipalScopedLongAnalysisJobs,
   createPrincipalScopedService,
   createPrincipalScopedSessionStore,
   createRemoteAccessStoreFromEnv,
   createUsageEventStoreFromEnv,
-  type ApiKeyStore,
   type AuthPrincipal,
   type RemoteAccessStore,
   type RemoteAccountPlan,
@@ -55,7 +53,6 @@ export type ApiHandlerOptions = {
   sessionStore?: AnalysisSessionStore;
   remoteAccessStore?: RemoteAccessStore;
   usageEventStore?: UsageEventStore;
-  apiKeyStore?: ApiKeyStore;
   authenticateRequest?: (
     request: Request,
     options?: AuthenticateWebRequestOptions
@@ -312,12 +309,9 @@ async function parseRequestBody<T>(
 async function authenticateApiRequest(
   request: Request,
   remoteAccessStore: RemoteAccessStore,
-  apiKeyStore: ApiKeyStore,
   options: ApiHandlerOptions
 ): Promise<AuthenticatedApiRequest> {
-  const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request, {
-    apiKeyStore,
-  });
+  const auth = await (options.authenticateRequest ?? authenticateWebRequest)(request);
   if (!auth.ok) {
     return {
       ok: false,
@@ -397,13 +391,11 @@ async function withAuthenticatedApiContext<T>(
     account: Awaited<ReturnType<RemoteAccessStore["upsertAccount"]>>;
     remoteAccessStore: RemoteAccessStore;
     usageEventStore: UsageEventStore;
-    apiKeyStore: ApiKeyStore;
   }) => Promise<Response>
 ): Promise<Response> {
   const remoteAccessStore = options.remoteAccessStore ?? createRemoteAccessStoreFromEnv();
   const usageEventStore = options.usageEventStore ?? createUsageEventStoreFromEnv();
-  const apiKeyStore = options.apiKeyStore ?? createApiKeyStoreFromEnv();
-  const auth = await authenticateApiRequest(request, remoteAccessStore, apiKeyStore, options);
+  const auth = await authenticateApiRequest(request, remoteAccessStore, options);
   if (!auth.ok) {
     return auth.response;
   }
@@ -413,7 +405,6 @@ async function withAuthenticatedApiContext<T>(
     account: auth.account,
     remoteAccessStore,
     usageEventStore,
-    apiKeyStore,
   });
 }
 

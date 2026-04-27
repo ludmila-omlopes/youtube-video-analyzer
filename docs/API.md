@@ -13,7 +13,6 @@ Unless `ALLOW_UNAUTHENTICATED_HOSTED_DEV=true`, protected routes require **one**
 | Method | Header or cookie |
 |--------|------------------|
 | OAuth access token (JWT) | `Authorization: Bearer <token>` |
-| API key | `x-api-key: <key>` or `Authorization: ApiKey <key>` |
 | Browser session (after `/login`) | HttpOnly cookie `ya_session` (default name; override with `OAUTH_HOSTED_ACCESS_COOKIE`). Send `credentials: "include"` from JavaScript. |
 
 OAuth protected resource metadata: **GET** `/.well-known/oauth-protected-resource`.
@@ -134,12 +133,9 @@ Useful for the **dashboard** and custom frontends. Prefer **`credentials: "inclu
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/web/session` | Session, account, entitlements, recent usage events, workflow runs, API key list (metadata only). |
+| GET | `/api/web/session` | Session, account, entitlements, recent usage events, and workflow runs. |
 | GET | `/api/web/runs` | More workflow runs (up to 20, plan-filtered). |
 | POST | `/api/web/monetization-scan` | Body: `{ "youtubeUrl": "...", "focus"?: "...", "startOffsetSeconds"?: number, "endOffsetSeconds"?: number }`. |
-| GET | `/api/web/api-keys` | List keys (requires plan entitlement). |
-| POST | `/api/web/api-keys` | Body: `{ "label"?: "..." }`. Returns `plaintextKey` once. |
-| DELETE | `/api/web/api-keys?keyId=<id>` | Revoke a key. |
 
 ---
 
@@ -148,7 +144,7 @@ Useful for the **dashboard** and custom frontends. Prefer **`credentials: "inclu
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/` | Marketing / landing page |
-| GET | `/dashboard` | Account dashboard (credits, usage, keys) |
+| GET | `/dashboard` | Account dashboard (credits and usage) |
 | GET | `/docs/api` | This API reference as readable HTML |
 | GET | `/docs/api/raw` | Same document as Markdown (`text/markdown`) |
 | GET | `/login` | Starts OAuth (redirect) |

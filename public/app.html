@@ -291,9 +291,7 @@
         const modeLabel =
           payload.auth.mode === "local"
             ? "Local mode"
-            : payload.auth.mode === "api_key"
-              ? "API key session"
-              : "Signed in";
+            : "Signed in";
         dom.modeCopy.textContent = `${modeLabel} · Plan ${payload.account.plan} · Credits ${payload.account.creditBalance}`;
 
         updateCreditBanner(payload);
