@@ -1,12 +1,23 @@
 import Link from "next/link";
 import { getSession } from "@/lib/session";
 
-export default async function LandingPage() {
+type LandingPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function LandingPage({ searchParams }: LandingPageProps) {
   const session = await getSession();
   const signedIn = !!session?.account;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const signedOut = resolvedSearchParams.signed_out === "1";
 
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center px-6 text-center">
+      {signedOut && (
+        <div className="mb-6 rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+          Signed out successfully.
+        </div>
+      )}
       <h1 className="text-5xl font-bold tracking-tight">YouTube Video Analyzer</h1>
       <p className="mt-4 max-w-xl text-lg text-[var(--muted)]">
         Submit any YouTube URL and get structured insights powered by Gemini —

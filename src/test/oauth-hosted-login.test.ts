@@ -41,6 +41,7 @@ export async function run(): Promise<void> {
   assert.equal(__test.timingSafeEqualString("a", "a"), true);
   assert.equal(__test.timingSafeEqualString("a", "b"), false);
   assert.equal(__test.timingSafeEqualString("a", "aa"), false);
+  assert.equal(__test.getLogoutSuccessPath(), "/");
 
   assert.equal(oauthCallbackPathMatches("/oauth/callback"), true);
   assert.equal(oauthCallbackPathMatches("/oauth/callback/"), true);
@@ -68,6 +69,18 @@ export async function run(): Promise<void> {
       delete process.env.OAUTH_WEB_REDIRECT_PATH;
     } else {
       process.env.OAUTH_WEB_REDIRECT_PATH = previous;
+    }
+  }
+
+  const previousLogoutPath = process.env.OAUTH_LOGOUT_SUCCESS_PATH;
+  try {
+    process.env.OAUTH_LOGOUT_SUCCESS_PATH = "/goodbye";
+    assert.equal(__test.getLogoutSuccessPath(), "/goodbye");
+  } finally {
+    if (previousLogoutPath === undefined) {
+      delete process.env.OAUTH_LOGOUT_SUCCESS_PATH;
+    } else {
+      process.env.OAUTH_LOGOUT_SUCCESS_PATH = previousLogoutPath;
     }
   }
 }

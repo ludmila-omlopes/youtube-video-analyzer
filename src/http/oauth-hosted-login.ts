@@ -50,6 +50,12 @@ function getLoginSuccessPath(env: NodeJS.ProcessEnv = process.env): string {
   return path.split("?")[0] || "/dashboard";
 }
 
+function getLogoutSuccessPath(env: NodeJS.ProcessEnv = process.env): string {
+  const raw = env.OAUTH_LOGOUT_SUCCESS_PATH?.trim();
+  const path = raw && raw.startsWith("/") ? raw : "/";
+  return path.split("?")[0] || "/";
+}
+
 function getLoginErrorQuery(errorCode: string): string {
   const params = new URLSearchParams({ oauth_error: errorCode });
   return `?${params.toString()}`;
@@ -231,7 +237,7 @@ export async function handleHostedOAuthCallbackRequest(request: Request): Promis
 }
 
 export async function handleHostedLogoutRequest(request: Request): Promise<Response> {
-  const landing = getLoginSuccessPath();
+  const landing = getLogoutSuccessPath();
   return redirectResponse(`${landing}?signed_out=1`, [
     serializeClearAccessTokenCookie(request),
     ...serializeClearPkceCookies(request),
@@ -268,5 +274,6 @@ export function oauthCallbackPathMatches(pathname: string, env: NodeJS.ProcessEn
 export const __test = {
   buildAuthorizeUrl,
   createPkceChallenge,
+  getLogoutSuccessPath,
   timingSafeEqualString,
 };

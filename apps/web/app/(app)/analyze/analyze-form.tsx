@@ -2,10 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { browserFetch, BrowserApiError } from "@/lib/api-client.browser";
-import { StructuredResultView } from "@/components/structured-result-view";
-import type { AnalyzeResponse, LongJobResponse } from "@/lib/types";
-
 import {
   browserFetch,
   browserReadJsonLines,
